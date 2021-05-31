@@ -1,0 +1,16 @@
+{
+  "name": "shifumi-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "nodemon main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nodemon": "^2.0.7",
+    "tmi": "^2.0.0",
+    "tmi.js": "^1.8.1"
+  }
+}
