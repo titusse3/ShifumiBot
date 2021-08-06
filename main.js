@@ -98,7 +98,7 @@ function timer_1(temps) {
     return new Promise(resolve => {
         setTimeout(() => {
             resolve(temps - 1);
-        }, 1500);
+        }, 2500);
     });
 }
 
