@@ -3,8 +3,8 @@ const tmi = require('tmi.js');
 
 const fs = require('fs');
 
-const chanelle = "toutse_"
-const bot_name = "shifumibot"//BotCulture
+const chanelle = "redklebg"
+const bot_name = "shifumibotv2_"//BotCulture
 // Define configuration options
 const opts = {
     identity: {
@@ -23,7 +23,7 @@ const client = new tmi.client(opts);
 var target;
 var first_player = undefined;
 var second_player = undefined;
-var game = false ;//Etat de la game
+var game = false ;//Etat de la games
 
 var nb_seconde_rep = 10000;
 var temps_de_reponse;
@@ -266,7 +266,6 @@ function change_value(target, win) {// fonction qui change les points d'un playe
     });
 };
 
-//change_value("tituse1", true)
 
 function compare( a, b ) {// fonction pour le classemnt dans historique player (avec le sort des donners )
     const valueA = Object.values(a)[0].win;
@@ -288,6 +287,15 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
     let message = msg.trim();// supp white space 
 
+    if (message === "!opgg" && game == false ){//regarde la commande de lancement de party 
+        message_tchat(`https://euw.op.gg/summoner/userName=mdvfjz`);
+        return;
+    };
+
+    if (message === "!discord" && game == false ){//regarde la commande de lancement de party 
+        message_tchat(`https://discord.com/invite/ub7qy56X`);
+        return;
+    };
 
     if (message[0] == "!"){//regarde utilisation commande
         if (message.split(' ')[0].substr(1) == "shifumi" && game == false ){
@@ -340,18 +348,17 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     game = "waiting response";
 
                     temps_de_reponse = setTimeout(J2_pasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
-                    
                 };
             });
         };
     };
 
 
-    if (context['display-name'] == second_player && game == "waiting response"){//recuperation ou non de l'accaptations ou non de la partie par le P2 
+    if (context['display-name'].toLowerCase() == second_player && game == "waiting response"){//recuperation ou non de l'accaptations ou non de la partie par le P2 
 
         clearTimeout(temps_de_reponse);//On enlève le timer qui pesait sur le temsps de réponse pour accepter la game car il a rep 
 
-        if (message == "accepte"){
+        if (message.toLowerCase() == "accepte"){
             message_tchat(`@${first_player} , @${second_player} Tenais vous prêt la partie va commencer dans 10 secondes !`);
 
             console.log("start");
@@ -366,7 +373,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
     };
 
     if (game == true){
-        if ((context['display-name'] == first_player) && (J1_a_rep == false)){
+        if ((context['display-name'].toLowerCase() == first_player) && (J1_a_rep == false)){
                 clearTimeout(rep_p1);
                 final_msg = verif_rep(msg.toLowerCase());
                 if (final_msg == false){
@@ -386,7 +393,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                 J1_a_rep = true;
         }
-        else if((context['display-name'] == second_player) && (J2_a_rep == false)){
+        else if((context['display-name'].toLowerCase() == second_player) && (J2_a_rep == false)){
                 clearTimeout(rep_p2);
                 final_msg = verif_rep(msg.toLowerCase());
 
