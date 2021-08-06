@@ -301,7 +301,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
     if (message[0] == "!"){//regarde utilisation commande
         if (message.split(' ')[0].substr(1) == "shifumi" && game == false ){
 
-            message_tchat(` @${context['display-name']} Voici les commandes disponible : !start //pseudo adversaire// | ! palmares `);
+            message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares `);
             return;
         };
 
@@ -317,7 +317,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
             return;
         };
 
-        if (message.split(' ')[0].substr(1) == "start" && game == false ){//regarde la commande de lancement de party 
+        if (message.split(' ')[0].substr(1) == "duel" && game == false ){//regarde la commande de lancement de party 
             first_player = context['display-name']; 
 
             if (message.split(' ')[1][0] == "@"){
