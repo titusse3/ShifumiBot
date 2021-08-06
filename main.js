@@ -147,13 +147,14 @@ function jour_pas_rep_game(joueur=undefined){
 }
 
 function verif_rep(msg){
-    if (msg == "ciseaux" || msg == "kamelciseaux"){
+    msg = msg.split(' ')
+    if (msg[0] == "ciseaux" || msg[0]  == "kamelciseaux"){
         return "c";
     }
-    else if (msg == "pierre" || msg == "kamelpierre"){
+    else if (msg[0]  == "pierre" || msg[0]  == "kamelpierre"){
         return "p";
     }
-    else if (msg == "feuille" || msg == "kamelfeuille"){
+    else if (msg[0]  == "feuille" || msg[0]  == "kamelfeuille"){
         return "f";
     }
     else{
