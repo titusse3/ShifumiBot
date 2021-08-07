@@ -1,7 +1,7 @@
-const { restart } = require('nodemon');
 const tmi = require('tmi.js');
+const {MongoClient} = require('mongodb');
 
-const fs = require('fs');
+// const fs = require('fs');
 
 const chanelle = "redklebg"
 const bot_name = "shifumibotv2_"//BotCulture
@@ -123,24 +123,72 @@ async function timer_rep_accepte(temps) {
 
     game = true;
     rep_p1 = setTimeout(jour_pas_rep_game, nb_seconde_rep_game, first_player);
+
     rep_p2 = setTimeout(jour_pas_rep_game, nb_seconde_rep_game, second_player);
 }
 
+async function Imuniter(UserCommande){
+    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const client = new MongoClient(uri);
+    
+    try {
+        await client.connect();
+        const collection = await client.db("ShifumiBotV2").collection('Palmares');
+        const user = await collection.find({User : UserCommande}).toArray();
+        if(user.length === 0){
+            console.log("ui");
+            message_tchat(`@${UserCommande} tu n'a encore jamais joué il te reste donc 3 Imuniter`);
+        }
+        else{
+            message_tchat(`@${UserCommande} il te reste ${user[0].Imune} Imuniter`);
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        await client.close();
+        return;
+    }
+}
 
-function J2_pasRep(){
-    restart_game_msg(` @${second_player} n'as pas repondu il aura donc une pénalité `)
+
+async function Penaliter(user){
+    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const client = new MongoClient(uri);
+    
+    try {
+        restart_game_msg(` @${second_player} n'a pas repondu il aura donc une pénaliter si il n'a plus d'imuniter`);
+        await client.connect();
+        const collection = await client.db("ShifumiBotV2").collection('Palmares');
+        let userObj = await collection.find({User:user}).toArray();
+        if ( userObj[0] !== undefined){
+            if (userObj[0].Imune-1 <= 0){
+                await collection.updateOne({User : user}, {Imune: 3});
+                client.say(target,`/timeout ${first_player} ${timout_duree} Tu n'avais plus d'imuniter `);
+            }
+            else{
+                await collection.updateOne({User : user},{$inc : {Imune:-1}} );
+            }
+        }
+        else {
+            await collection.updateOne({User : user}, {$setOnInsert:{Victoire:0, Game : 0, Imune : 2}}, {upsert : true});
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        await client.close();
+    }
 }
 
 function jour_pas_rep_game(joueur=undefined){
     message_tchat(` @${joueur} n'as pas répondu il a donc perdu `);
 
     if (joueur == first_player){
-        change_value(first_player, false);
-        change_value(second_player, true);
+        Resultat(first_player, "Lose");
+        Resultat(second_player, "Win");
         client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep `);
     }else{
-        change_value(second_player, false);
-        change_value(first_player, true);
+        Resultat(second_player, "Lose");
+        Resultat(first_player, "Win");
         client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
     }
     restart_game()
@@ -165,7 +213,6 @@ function verif_rep(msg){
 function seak_winner(tab){
     let j1;
     let j2;
-    // console.log(tab)
     if (Object.keys(tab[0])[0] == first_player){
         j1 = Object.values(tab[0])[0];
         j2 = Object.values(tab[1])[0];
@@ -174,9 +221,6 @@ function seak_winner(tab){
         j1 = Object.values(tab[1])[0];
         j2 = Object.values(tab[0])[0];
     }
-    // console.log(j1)
-    // console.log(j2)
-    // console.log(first_player)
     if (j1 == j2)
         return "Draw";
     if ( (j1 == 'p' && j2 == 'c') || (j1 == 'c' && j2 == 'f') || (j1 == 'f' && j2 == 'p')){
@@ -187,98 +231,74 @@ function seak_winner(tab){
     };
 };
 
-function palmares(user_palpalmares) {//fonction qui repond a la commande palmares 
-    let user_in_top_3 = false;
-    let index_player = -1;
-    let tab_top_3 = [];
-    let nb_points;
-    fs.readFile('./db/db_palmares.json', 'utf8', function (err, file) {
-        let all_data = JSON.parse(file);
+async function palmares(userPalmares) {//fonction qui repond a la commande palmares 
 
-        for (let i = 0; i < 3; i++) {
-            if ((all_data[i] != undefined) && (Object.keys(all_data[i])[0] == user_palpalmares)) {
-                user_in_top_3 = true;
-                index_player = i + 1;
-            };
-            all_data[i] != undefined ? tab_top_3.push(all_data[i]) : tab_top_3.push("");
-        };
-        
-        if (user_in_top_3 == false)
-            index_player = all_data.findIndex(x => Object.keys(x)[0] == user_palpalmares) + 1;
-        if (index_player == 0 || user_in_top_3 == true) {
+    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const client = new MongoClient(uri);
 
-            message_tchat(message_palmares(tab_top_3, "", "", ""))
+    try {
 
-            return;
+        await client.connect();
+        const collect = await client.db("ShifumiBotV2").collection('Palmares');
+        const tabTop3 = await collect.find().sort({Victoire : -1}).limit(3).toArray();
+        let allUser;
+        let User;
+        let classement;
+
+        if(tabTop3.find(element=>element.User === userPalmares) !== undefined){
+            message_tchat(message_palmares(tabTop3));
         }
-        else {
-            nb_points = Object.values(all_data[index_player - 1])[0].win;
-            message_tchat(message_palmares(tab_top_3, user_palpalmares, index_player, nb_points));
-
-            return;
-        };
-
-    });
+        else{
+            allUser = await collect.find().toArray();
+            User = allUser.find(element => element.User === userPalmares);
+            if (User !== undefined){
+                classement = allUser.indexOf(User) +1;
+                message_tchat(message_palmares(tabTop3, User, classement));
+            }
+            else{
+                message_tchat(message_palmares(tabTop3));
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        await client.close();
+        return;
+    }
 };
-// palmares("tituse3")
 
 
-function message_palmares(tab_user, user_palpalmares, classement, nb_points) {// fonction qui revoir le message pour le palmares
+
+function message_palmares(tab_user, user, classement) {// fonction qui revoir le message pour le palmares
     let msg_classement = ``;
-    tab_user.forEach((x) => { x != "" ? msg_classement += ` ${tab_user.indexOf(x) + 1}° ${Object.keys(x)[0]} (${Object.values(x)[0].win} win / ${Object.values(x)[0].nb_game} game) |` : "" });
-    if (user_palpalmares != "" && classement != "")
-        msg_classement += ` ... ${classement}° ${user_palpalmares} (${nb_points} win) | `;
+    tab_user.forEach((x) => { msg_classement += ` ${tab_user.indexOf(x) + 1}° ${x.User} (${x.Victoire} win / ${x.Game} game) |`});
+    if (user != undefined)
+        msg_classement += ` ... ${classement}° ${user.User} (${user.Victoire} win / ${user.Game} game) | `;
 
-    return msg_classement;
+    return msg_classement !== "" ? msg_classement : "Personne n'a encore jouer soit le premier :)";
 };
 
-function creat_player(player) {// fonction qui crée un player si il existe pas 
-    fs.readFile('./db/db_palmares.json', 'utf8', function (err, file) {
-        let all_data = JSON.parse(file);
-        let obj = {};
-        obj[player] = {"win" : 0, "nb_game" : 0, "nb_protect" : 3};
-        all_data.push(obj);
-        all_data = JSON.stringify(all_data);
-        fs.writeFileSync("./db/db_palmares.json", all_data);
-    });
-};
+async function Resultat(user, resulte){
+    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const client = new MongoClient(uri);
 
-//creat_player("tituse1")
-
-function change_value(target, win) {// fonction qui change les points d'un player 
-    fs.readFile('./db/db_palmares.json', 'utf8', function (err, file) {
-        let all_data = JSON.parse(file);
-        if (all_data.find(x => Object.keys(x)[0] == target) != undefined) {
-
-            all_data[all_data.findIndex(x => Object.keys(x)[0] == target)][target].nb_game += 1;
-            if (win == true)
-                all_data[all_data.findIndex(x => Object.keys(x)[0] == target)][target].win  += 1;
-
+    try {
+        await client.connect();
+        const collection = await client.db("ShifumiBotV2").collection('Palmares');
+        if(resulte ==="Win"){
+            await collection.updateOne({User : user}, {$inc:{Victoire:1, Game : 1}, $set : {Imune : 3}}, {upsert : true});
         }
-        else {
-            creat_player(target);
-            change_value(target, win);
-        };
+        else{
+            await collection.updateOne({User : user}, {$inc:{Victoire:0, Game : 1}, $set : {Imune : 3}}, {upsert : true});
+        }
 
-        all_data.sort(compare);
-
-        all_data = JSON.stringify(all_data);
-        fs.writeFileSync("./db/db_palmares.json", all_data);
-    });
-};
-
-
-function compare( a, b ) {// fonction pour le classemnt dans historique player (avec le sort des donners )
-    const valueA = Object.values(a)[0].win;
-    const valueB = Object.values(b)[0].win;
-    if ( valueA > valueB ){
-        return -1;
+    } catch (e) {
+        console.error(e);
+    } finally {
+        await client.close();
+        return;
     }
-    if ( valueA < valueB ){
-        return 1;
-    }
-    return 0;
-};
+}
 
 //target = pseudo , context = toute les info sur le user , msg = le message , self = au bot  
 function commandeHandler(targe , context, msg, self){// fonction appeler a chaque message du tchat 
@@ -298,6 +318,10 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         return;
     };
 
+    if (message === "!Imuniter" && game == false ){//regarde la commande de lancement de party 
+        Imuniter(context['display-name'])
+    };
+
     if (message[0] == "!"){//regarde utilisation commande
         if (message.split(' ')[0].substr(1) == "shifumi" && game == false ){
 
@@ -308,11 +332,10 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         if (message.split(' ')[0].substr(1) == "palmares" && game == false ){
 
             palmares(context['display-name']);
-            return;
         };
 
 
-        if (message.split(' ').length == 1){
+        if (message === "!duel"){
             message_tchat(` @${context['display-name']} Tu dois identifier une personne pour lancer la partie ! `);
             return;
         };
@@ -337,9 +360,12 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                 console.log(tab)
 
-                if (tab.indexOf(second_player) == -1){
+                if (tab.indexOf(second_player) === -1){
                     //don't start match 2 choix : pas la || il s'identfie dans le message 
                     restart_game_msg(` @${second_player} n'est pas la !`);
+                }
+                else if (tab.indexOf(first_player) === -1){
+                    restart_game_msg(` @${first_player} tu ne peux pas faire une partie carv twitch ne considaire pas que tu est la attend quelque minutes`);
                 }
                 else if (first_player == second_player){
                     restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
@@ -348,7 +374,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
                     game = "waiting response";
 
-                    temps_de_reponse = setTimeout(J2_pasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
+                    temps_de_reponse = setTimeout(Penaliter, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
                 };
             });
         };
@@ -369,7 +395,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         }
         else {
             console.log("refuse");
-            restart_game_msg(`@${second_player} n'a pas accepter de jouer .`);
+            restart_game_msg(`@${second_player} n'a pas accepter de jouer . Il aura donc une Imuniter en moins !`);
+            Penaliter();
         };
     };
 
@@ -380,8 +407,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                 if (final_msg == false){
                     message_tchat(`@${second_player} a gagner car @${first_player} n'a pas bien répondu`);
 
-                    change_value(second_player, true);
-                    change_value(first_player, false);
+                    Resultat(second_player, "Win");
+                    Resultat(first_player, "Lose");
 
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep donc ta perdu`);
 
@@ -402,8 +429,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                     message_tchat(`@${first_player} a gagner car @${second_player} n'a pas bien répondu`);
         
-                    change_value(first_player, true);
-                    change_value(second_player, false);
+                    Resultat(first_player, "Win");
+                    Resultat(second_player, "Lose");
 
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
 
@@ -434,8 +461,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     message_tchat(`@${first_player} a gagner GG a lui `);
 
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a perdu `);
-                    change_value(first_player, true);
-                    change_value(second_player, false);
+                    Resultat(first_player, "Win");
+                    Resultat(second_player, "Lose");
 
 
                     restart_game();
@@ -447,8 +474,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a perdu `);
 
-                    change_value(second_player, true);
-                    change_value(first_player, false);
+                    Resultat(second_player, "Win");
+                    Resultat(first_player, "False");
 
                     
                     restart_game();
