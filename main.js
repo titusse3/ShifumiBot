@@ -1,9 +1,8 @@
 const tmi = require('tmi.js');
 const {MongoClient} = require('mongodb');
 
-// const fs = require('fs');
 
-const chanelle = "redklebg"
+const chanelle = "toutse_"
 const bot_name = "shifumibotv2_"//BotCulture
 // Define configuration options
 const opts = {
@@ -20,22 +19,15 @@ const opts = {
 // Create a client with our options
 const client = new tmi.client(opts);
 
-var target;
-var first_player = undefined;
-var second_player = undefined;
+var target, temps_de_reponse;
+var first_player = undefined, second_player=undefined;
 var game = false ;//Etat de la games
-
-var nb_seconde_rep = 10000;
-var temps_de_reponse;
-var rep_p1;
-var rep_p2;
-var nb_seconde_rep_game = 5000;//temps de rep quand la game a commencer 
-
+var nb_seconde_rep = 10000, nb_seconde_rep_game = 5000, timout_duree= 15, TempsImuniter = 3600000;
+var rep_p1, rep_p2;
 var tab_rep_player = [];
-var J1_a_rep = false;
-var J2_a_rep = false;
-
-var timout_duree = 15;
+var J1_a_rep = false, J2_a_rep=false;
+var ciseaux = 0, pierre=1,feuille=2;
+var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre"], TabFeuille = ["feuilles","feuille","kamelfeuille"];
 
 client.on('message', commandeHandler);
 // Connect to Twitch:
@@ -134,13 +126,12 @@ async function Imuniter(UserCommande){
     try {
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
-        const user = await collection.find({User : UserCommande}).toArray();
+        const user = await collection.find({User : UserCommande.toLowerCase()}).toArray();
         if(user.length === 0){
-            console.log("ui");
-            message_tchat(`@${UserCommande} tu n'a encore jamais joué il te reste donc 3 Imuniter`);
+            message_tchat(`@${UserCommande} tu n'a encore jamais joué tu n'a donc pas d'imuniter`);
         }
         else{
-            message_tchat(`@${UserCommande} il te reste ${user[0].Imune} Imuniter`);
+            message_tchat(`@${UserCommande} tu a ${new Date() - user[0].Imune <= TempsImuniter ? Math.round(((TempsImuniter - (new Date() - user[0].Imune)) / 60000)%60) + " minute" : "plus"} d'Imuniter`);
         }
     } catch (e) {
         console.error(e);
@@ -151,26 +142,20 @@ async function Imuniter(UserCommande){
 }
 
 
+
 async function Penaliter(user){
     const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
     const client = new MongoClient(uri);
     
     try {
-        restart_game_msg(` @${second_player} n'a pas repondu il aura donc une pénaliter si il n'a plus d'imuniter`);
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
         let userObj = await collection.find({User:user}).toArray();
-        if ( userObj[0] !== undefined){
-            if (userObj[0].Imune-1 <= 0){
-                await collection.updateOne({User : user}, {Imune: 3});
-                client.say(target,`/timeout ${first_player} ${timout_duree} Tu n'avais plus d'imuniter `);
-            }
-            else{
-                await collection.updateOne({User : user},{$inc : {Imune:-1}} );
-            }
+        if ( userObj.length === 1){
+            await collection.updateOne({User : user}, {$set : {Imune: new Date()}});
         }
         else {
-            await collection.updateOne({User : user}, {$setOnInsert:{Victoire:0, Game : 0, Imune : 2}}, {upsert : true});
+            await collection.updateOne({User : user}, {$setOnInsert:{User : user, Victoire:0, Game : 0, Imune : new Date()}}, {upsert : true});
         }
     } catch (e) {
         console.error(e);
@@ -194,23 +179,24 @@ function jour_pas_rep_game(joueur=undefined){
     restart_game()
 }
 
-function verif_rep(msg){
-    msg = msg.split(' ')
-    if (msg[0] == "ciseaux" || msg[0]  == "kamelciseaux"){
-        return "c";
+function VerifRep(msg){
+    msg = msg.split(' ')[0];
+    if (TabCiseaux.find(element=>msg === element) !== undefined){
+        return ciseaux;
     }
-    else if (msg[0]  == "pierre" || msg[0]  == "kamelpierre"){
-        return "p";
+    else if (TabPierre.find(element=>msg === element) !== undefined){
+        return pierre;
     }
-    else if (msg[0]  == "feuille" || msg[0]  == "kamelfeuille"){
-        return "f";
+    else if (TabFeuille.find(element=>msg === element) !== undefined){
+        return feuille;
     }
     else{
-        return false;
+        return -1;
     }
 }
 
-function seak_winner(tab){
+
+function SeakWinner(tab){
     let j1;
     let j2;
     if (Object.keys(tab[0])[0] == first_player){
@@ -223,7 +209,7 @@ function seak_winner(tab){
     }
     if (j1 == j2)
         return "Draw";
-    if ( (j1 == 'p' && j2 == 'c') || (j1 == 'c' && j2 == 'f') || (j1 == 'f' && j2 == 'p')){
+    if ( (j1 === pierre && j2 === ciseaux) || (j1 === ciseaux && j2 === feuille) || (j1 === feuille && j2 == pierre)){
         return "J1";
     }
     else{
@@ -286,10 +272,10 @@ async function Resultat(user, resulte){
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
         if(resulte ==="Win"){
-            await collection.updateOne({User : user}, {$inc:{Victoire:1, Game : 1}, $set : {Imune : 3}}, {upsert : true});
+            await collection.updateOne({User : user}, {$inc:{Victoire:1, Game : 1}, $set : {User : user, Imune : new Date()}}, {upsert : true});
         }
         else{
-            await collection.updateOne({User : user}, {$inc:{Victoire:0, Game : 1}, $set : {Imune : 3}}, {upsert : true});
+            await collection.updateOne({User : user}, {$inc:{Victoire:0, Game : 1}, $set : {User : user, Imune : new Date()}}, {upsert : true});
         }
 
     } catch (e) {
@@ -300,6 +286,31 @@ async function Resultat(user, resulte){
     }
 }
 
+async function ImuniterUser(user){
+    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const client = new MongoClient(uri);
+
+    try {
+        await client.connect();
+        const collect = await client.db("ShifumiBotV2").collection('Palmares');
+        const User = await collect.find({User:user}).toArray();
+        if(User.length === 1 && new Date() - User[0].Imune <= TempsImuniter){
+            restart_game_msg(`@${first_player} ${second_player} a une imuniter tu ne peux donc pas le défier`);
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        await client.close();
+        return;
+    }
+}
+
+function J2PasRep(){
+    restart_game_msg(`@${second_player} n'a pas répondu il aura donc une pénaliter !`);
+    Penaliter()
+    client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep `);
+}
+
 //target = pseudo , context = toute les info sur le user , msg = le message , self = au bot  
 function commandeHandler(targe , context, msg, self){// fonction appeler a chaque message du tchat 
     if (self) { return; }; // Pour que le bot ne considère pas ces propres messages
@@ -308,24 +319,24 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
     let message = msg.trim();// supp white space 
 
-    if (message === "!opgg" && game == false ){//regarde la commande de lancement de party 
+    if (message.toLowerCase() === "!opgg" && game == false ){//regarde la commande de lancement de party 
         message_tchat(`https://euw.op.gg/summoner/userName=mdvfjz`);
         return;
     };
 
-    if (message === "!discord" && game == false ){//regarde la commande de lancement de party 
+    if (message.toLowerCase() === "!discord" && game == false ){//regarde la commande de lancement de party 
         message_tchat(`https://discord.com/invite/ub7qy56X`);
         return;
     };
 
-    if (message === "!Imuniter" && game == false ){//regarde la commande de lancement de party 
+    if (message.toLowerCase() === "!imuniter" && game == false ){//regarde la commande de lancement de party 
         Imuniter(context['display-name'])
     };
 
     if (message[0] == "!"){//regarde utilisation commande
         if (message.split(' ')[0].substr(1) == "shifumi" && game == false ){
 
-            message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares `);
+            message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares | !Immuniter `);
             return;
         };
 
@@ -364,17 +375,15 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     //don't start match 2 choix : pas la || il s'identfie dans le message 
                     restart_game_msg(` @${second_player} n'est pas la !`);
                 }
-                else if (tab.indexOf(first_player) === -1){
-                    restart_game_msg(` @${first_player} tu ne peux pas faire une partie carv twitch ne considaire pas que tu est la attend quelque minutes`);
-                }
                 else if (first_player == second_player){
                     restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
                 }
                 else{
+                    ImuniterUser(second_player)
                     message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
                     game = "waiting response";
 
-                    temps_de_reponse = setTimeout(Penaliter, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
+                    temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
                 };
             });
         };
@@ -395,16 +404,17 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         }
         else {
             console.log("refuse");
-            restart_game_msg(`@${second_player} n'a pas accepter de jouer . Il aura donc une Imuniter en moins !`);
             Penaliter();
+            client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep `);
+            restart_game_msg(`@${second_player} n'a pas accepter de jouer . Il aura donc une pénaliter !`);
         };
     };
 
     if (game == true){
         if ((context['display-name'].toLowerCase() == first_player) && (J1_a_rep == false)){
                 clearTimeout(rep_p1);
-                final_msg = verif_rep(msg.toLowerCase());
-                if (final_msg == false){
+                final_msg = VerifRep(msg.toLowerCase());
+                if (final_msg === -1){
                     message_tchat(`@${second_player} a gagner car @${first_player} n'a pas bien répondu`);
 
                     Resultat(second_player, "Win");
@@ -423,9 +433,9 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         }
         else if((context['display-name'].toLowerCase() == second_player) && (J2_a_rep == false)){
                 clearTimeout(rep_p2);
-                final_msg = verif_rep(msg.toLowerCase());
+                final_msg = VerifRep(msg.toLowerCase());
 
-                if (final_msg == false){
+                if (final_msg == -1){
 
                     message_tchat(`@${first_player} a gagner car @${second_player} n'a pas bien répondu`);
         
@@ -449,7 +459,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
             console.log(tab_rep_player)
             console.log(first_player)
 
-            switch(seak_winner(tab_rep_player)){
+            switch(SeakWinner(tab_rep_player)){
                 case "Draw" :
                     message_tchat(`@${first_player} , @${second_player} Egalité on recommence dans 10 secondes`);
 
