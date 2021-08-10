@@ -379,7 +379,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     return;
                 }
                 else{
-                    ImuniterUser(second_player)
+                    // ImuniterUser(second_player)
                     message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
                     game = "waiting response";
                     temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
