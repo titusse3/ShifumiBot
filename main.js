@@ -22,7 +22,7 @@ const client = new tmi.client(opts);
 var target, temps_de_reponse;
 var first_player = undefined, second_player=undefined;
 var game = false ;//Etat de la games
-var nb_seconde_rep = 10000, nb_seconde_rep_game = 5000, timout_duree= 15, TempsImuniter = 3600000;
+var nb_seconde_rep = 30000, nb_seconde_rep_game = 5000, timout_duree= 15, TempsImuniter = 3600000;
 var rep_p1, rep_p2;
 var tab_rep_player = [];
 var J1_a_rep = false, J2_a_rep=false;
