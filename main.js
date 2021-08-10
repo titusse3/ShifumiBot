@@ -2,7 +2,7 @@ const tmi = require('tmi.js');
 const {MongoClient} = require('mongodb');
 
 
-const chanelle = "toutse_"
+const chanelle = "redklebg"
 const bot_name = "shifumibotv2_"//BotCulture
 // Define configuration options
 const opts = {
