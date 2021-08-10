@@ -27,7 +27,7 @@ var rep_p1, rep_p2;
 var tab_rep_player = [];
 var J1_a_rep = false, J2_a_rep=false;
 var ciseaux = 0, pierre=1,feuille=2;
-var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre"], TabFeuille = ["feuilles","feuille","kamelfeuille"];
+var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille"];
 
 client.on('message', commandeHandler);
 // Connect to Twitch:
@@ -237,8 +237,8 @@ async function palmares(userPalmares) {//fonction qui repond a la commande palma
         else{
             allUser = await collect.find().toArray();
             User = allUser.find(element => element.User === userPalmares);
+            classement = allUser.indexOf(User) + 1;
             if (User !== undefined){
-                classement = allUser.indexOf(User) +1;
                 message_tchat(message_palmares(tabTop3, User, classement));
             }
             else{
@@ -295,7 +295,7 @@ async function ImuniterUser(user){
         const collect = await client.db("ShifumiBotV2").collection('Palmares');
         const User = await collect.find({User:user}).toArray();
         if(User.length === 1 && new Date() - User[0].Imune <= TempsImuniter){
-            restart_game_msg(`@${first_player} ${second_player} a une imuniter tu ne peux donc pas le défier`);
+            restart_game_msg(`${second_player} a une imuniter tu ne peux donc pas le défier`);
         }
     } catch (e) {
         console.error(e);
@@ -306,9 +306,9 @@ async function ImuniterUser(user){
 }
 
 function J2PasRep(){
+    client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
+    Penaliter(second_player)
     restart_game_msg(`@${second_player} n'a pas répondu il aura donc une pénaliter !`);
-    Penaliter()
-    client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep `);
 }
 
 //target = pseudo , context = toute les info sur le user , msg = le message , self = au bot  
@@ -330,7 +330,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
     };
 
     if (message.toLowerCase() === "!imuniter" && game == false ){//regarde la commande de lancement de party 
-        Imuniter(context['display-name'])
+        Imuniter(context['display-name'].toLowerCase());
     };
 
     if (message[0] == "!"){//regarde utilisation commande
@@ -342,7 +342,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
         if (message.split(' ')[0].substr(1) == "palmares" && game == false ){
 
-            palmares(context['display-name']);
+            palmares(context['display-name'].toLowerCase());
         };
 
 
@@ -351,8 +351,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
             return;
         };
 
-        if (message.split(' ')[0].substr(1) == "duel" && game == false ){//regarde la commande de lancement de party 
-            first_player = context['display-name']; 
+        if (message.split(' ')[0].substr(1) === "duel" && game == false ){//regarde la commande de lancement de party 
+            first_player = context['display-name'].toLowerCase(); 
 
             if (message.split(' ')[1][0] == "@"){
                 second_player = message.split(' ')[1].substr(1).toLowerCase();
@@ -361,36 +361,36 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                 second_player = message.split(' ')[1].toLowerCase();
             }
 
-            if (second_player == bot_name.toLowerCase()){
+            if (second_player === bot_name.toLowerCase()){
                 restart_game_msg(`@${first_player} tu ne peux pas défier le bot !`);
                 return;
             };
+            if (first_player === second_player){
+                restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
+                return;
+            }
 
             getChatters(chanelle, (response) => {
                 let tab = [...response.chatters.broadcaster, ...response.chatters.viewers, ...response.chatters.vips, ...response.chatters.moderators, ...response.chatters.staff, ...response.chatters.admins];
 
-                console.log(tab)
-
                 if (tab.indexOf(second_player) === -1){
                     //don't start match 2 choix : pas la || il s'identfie dans le message 
                     restart_game_msg(` @${second_player} n'est pas la !`);
-                }
-                else if (first_player == second_player){
-                    restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
+                    return;
                 }
                 else{
                     ImuniterUser(second_player)
                     message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
                     game = "waiting response";
-
                     temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
+                    return;
                 };
             });
         };
     };
 
 
-    if (context['display-name'].toLowerCase() == second_player && game == "waiting response"){//recuperation ou non de l'accaptations ou non de la partie par le P2 
+    if (context['display-name'].toLowerCase() === second_player && game == "waiting response"){//recuperation ou non de l'accaptations ou non de la partie par le P2 
 
         clearTimeout(temps_de_reponse);//On enlève le timer qui pesait sur le temsps de réponse pour accepter la game car il a rep 
 
@@ -404,9 +404,10 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         }
         else {
             console.log("refuse");
-            Penaliter();
-            client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep `);
+            Penaliter(second_player);
+            client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
             restart_game_msg(`@${second_player} n'a pas accepter de jouer . Il aura donc une pénaliter !`);
+            return;
         };
     };
 
@@ -423,6 +424,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep donc ta perdu`);
 
                     restart_game();
+                    return;
                 };
 
                 let obj = {};
@@ -445,6 +447,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
 
                     restart_game();
+                    return;
                 };
 
                 let obj = {};
@@ -456,14 +459,12 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
 
         if (tab_rep_player.length == 2){
-            console.log(tab_rep_player)
-            console.log(first_player)
-
             switch(SeakWinner(tab_rep_player)){
                 case "Draw" :
                     message_tchat(`@${first_player} , @${second_player} Egalité on recommence dans 10 secondes`);
 
                     restart_game_for_darw();
+                    return;
 
                     break;
                 case "J1" :
@@ -476,6 +477,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
 
                     restart_game();
+                    return;
 
                     break;
                 default ://J2 win
@@ -489,6 +491,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                     
                     restart_game();
+                    return;
 
                     break;
             }
