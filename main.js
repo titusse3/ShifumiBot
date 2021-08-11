@@ -4,14 +4,10 @@ const {MongoClient} = require('mongodb');
 
 
 const chanelle = "redklebg"
-// const bot_name = "shifumibotv2_"//BotCulture
-const bot_name = process.env.BOT_NAME//BotCulture
 // Define configuration options
 const opts = {
     identity: {
-      // username: "shifumibot",
-      // password: "b4ynh51nmim4d0kjm7zzi2hiv48ijs"     i2lcmgltsjm89mybpdn1socl9ginz2    
-    username: bot_name,
+    username: process.env.BOT_NAME,
     password: process.env.PASSWORD//auth key
     },
     channels: [
