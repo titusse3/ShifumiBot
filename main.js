@@ -1,16 +1,18 @@
+require('dotenv').config()
 const tmi = require('tmi.js');
 const {MongoClient} = require('mongodb');
 
 
 const chanelle = "redklebg"
-const bot_name = "shifumibotv2_"//BotCulture
+// const bot_name = "shifumibotv2_"//BotCulture
+const bot_name = process.env.BOT_NAME//BotCulture
 // Define configuration options
 const opts = {
     identity: {
       // username: "shifumibot",
       // password: "b4ynh51nmim4d0kjm7zzi2hiv48ijs"     i2lcmgltsjm89mybpdn1socl9ginz2    
     username: bot_name,
-    password: "i2lcmgltsjm89mybpdn1socl9ginz2"//auth key
+    password: process.env.PASSWORD//auth key
     },
     channels: [
     chanelle
@@ -22,7 +24,7 @@ const client = new tmi.client(opts);
 var target, temps_de_reponse;
 var first_player = undefined, second_player=undefined;
 var game = false ;//Etat de la games
-var nb_seconde_rep = 30000, nb_seconde_rep_game = 5000, timout_duree= 15, TempsImuniter = 3600000;
+var nb_seconde_rep = 30000, nb_seconde_rep_game = 4500, timout_duree= 15, TempsImuniter = 3600000;
 var rep_p1, rep_p2;
 var tab_rep_player = [];
 var J1_a_rep = false, J2_a_rep=false;
@@ -120,7 +122,7 @@ async function timer_rep_accepte(temps) {
 }
 
 async function Imuniter(UserCommande){
-    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const uri = process.env.URL;
     const client = new MongoClient(uri);
     
     try {
