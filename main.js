@@ -1,6 +1,8 @@
 require('dotenv').config()
 const tmi = require('tmi.js');
 const {MongoClient} = require('mongodb');
+const readline = require('readline');
+const { ESTALE } = require('constants');
 
 
 const chanelle = "redklebg"
@@ -26,6 +28,95 @@ var tab_rep_player = [];
 var J1_a_rep = false, J2_a_rep=false;
 var ciseaux = 0, pierre=1,feuille=2;
 var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille"];
+var tabCommande = ["Change anwsert time on acceptation", "Change anwsert time on Game", "Change timeout length", "Change imunity length", "Exit"];
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+function QuestionCommand(){
+    rl.question(`What do you want ? \n - ${tabCommande.join(' \n - ')}\n> `, (answer) => {
+        let rep = tabCommande.find(element=>element.toLowerCase() === answer.toLowerCase());
+        switch (rep) {
+            case "Change anwsert time on acceptation":
+                ChangeTime("StartGame");
+                break;    
+            case "Change anwsert time on Game":
+                ChangeTime("RepGame");    
+                break;
+            case "Change timeout length":
+                ChangeTime("Timeout");        
+                break;      
+            case "Change imunity length":
+                ChangeTime("Immunite");        
+                break;                    
+            case "Exit":
+                console.log("Bye Bye !");
+                rl.close();
+                break;
+            default:
+                console.log('Command invalid . Please write a valid answer .');
+                setTimeout(QuestionCommand, 2000);
+                break;
+        }
+    });
+};
+
+function ChangeTime(variable){
+    switch (variable) {
+        case "StartGame":
+            rl.question(`How much time for the new acceptation time (in seconde) ? `, (NewTime) => {
+                if(parseInt(NewTime)){
+                    nb_seconde_rep = parseInt(NewTime) * 1000;
+                    console.log(`The acceptation time is now at ${nb_seconde_rep/1000} seconde`);
+                }
+                else{
+                    ChangeTime("StartGame");
+                }
+                setTimeout(QuestionCommand, 1000);
+            });
+            break;
+        case "RepGame":
+            rl.question(`How much time for the new reponse in game (in seconde) ? `, (NewTime) => {
+                if(parseInt(NewTime)){
+                    nb_seconde_rep_game = parseInt(NewTime) * 1000;
+                    console.log(`The reponse in game time is now at ${nb_seconde_rep_game/1000} seconde`);
+                }
+                else{
+                    ChangeTime("RepGame");
+                }
+                setTimeout(QuestionCommand, 1000);
+            });
+            break;
+        case "Timeout":
+            rl.question(`How much time for the new timout in game (in seconde) ? `, (NewTime) => {
+                if(parseInt(NewTime)){
+                    timout_duree = parseInt(NewTime);
+                    console.log(`The timeout time is now at ${timout_duree} seconde`);
+                }
+                else{
+                    ChangeTime("Timeout");
+                }
+                setTimeout(QuestionCommand, 1000);
+            });
+            break;
+        case "Immunite":
+            rl.question(`How much time for the new immunity value (in seconde) ? `, (NewTime) => {
+                if(parseInt(NewTime)){
+                    TempsImuniter = parseInt(NewTime)*1000;
+                    console.log(`The immunity time is now at ${TempsImuniter/1000} seconde`);
+                }
+                else{
+                    ChangeTime("Immunite");
+                }
+                setTimeout(QuestionCommand, 1000);
+            });
+            break;
+    }
+}
+
+QuestionCommand();
 
 client.on('message', commandeHandler);
 // Connect to Twitch:
@@ -97,15 +188,12 @@ async function timer_rep_accepte(temps) {
         temps = await timer_1(temps);
         switch (temps) {
             case 3:
-                console.log("Shi");
                 message_tchat("Shi");
                 break;
             case 2:
-                console.log("Fu");
                 message_tchat("Fu");
                 break;
             case 1:
-                console.log("MI");
                 message_tchat("MI");
                 break;
         }
@@ -166,12 +254,10 @@ function jour_pas_rep_game(joueur=undefined){
     message_tchat(` @${joueur} n'as pas répondu il a donc perdu `);
 
     if (joueur == first_player){
-        Resultat(first_player, "Lose");
-        Resultat(second_player, "Win");
+        Resultat(first_player, second_player, "Lose");
         client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep `);
     }else{
-        Resultat(second_player, "Lose");
-        Resultat(first_player, "Win");
+        Resultat(first_player, second_player, "Win");
         client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
     }
     restart_game()
@@ -262,20 +348,21 @@ function message_palmares(tab_user, user, classement) {// fonction qui revoir le
     return msg_classement !== "" ? msg_classement : "Personne n'a encore jouer soit le premier :)";
 };
 
-async function Resultat(user, resulte){
+async function Resultat(user1, user2, resulte){
     const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
     const client = new MongoClient(uri);
 
     try {
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
-        if(resulte ==="Win"){
-            await collection.updateOne({User : user}, {$inc:{Victoire:1, Game : 1}, $set : {User : user, Imune : new Date()}}, {upsert : true});
+        if (resulte === "Win"){
+            await collection.updateOne({User : user1}, {$inc:{Victoire:1, Game : 1}, $set : {User : user1}}, {upsert : true});
+            await collection.updateOne({User : user2}, {$inc:{Victoire:0, Game : 1}, $set : {User : user2, Imune : new Date()}}, {upsert : true});
         }
         else{
-            await collection.updateOne({User : user}, {$inc:{Victoire:0, Game : 1}, $set : {User : user, Imune : new Date()}}, {upsert : true});
+            await collection.updateOne({User : user1}, {$inc:{Victoire:0, Game : 1}, $set : {User : user1}}, {upsert : true});
+            await collection.updateOne({User : user2}, {$inc:{Victoire:1, Game : 1}, $set : {User : user2, Imune : new Date()}}, {upsert : true});
         }
-
     } catch (e) {
         console.error(e);
     } finally {
@@ -327,14 +414,14 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         return;
     };
 
-    if (message.toLowerCase() === "!imuniter" && game == false ){//regarde la commande de lancement de party 
+    if (message.toLowerCase() === "!immunite" && game == false ){//regarde la commande de lancement de party 
         Imuniter(context['display-name'].toLowerCase());
     };
 
     if (message[0] == "!"){//regarde utilisation commande
         if (message.split(' ')[0].substr(1) == "shifumi" && game == false ){
 
-            message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares | !Immuniter `);
+            message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares | !immunite `);
             return;
         };
 
@@ -359,7 +446,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                 second_player = message.split(' ')[1].toLowerCase();
             }
 
-            if (second_player === bot_name.toLowerCase()){
+            if (second_player === process.env.BOT_NAME.toLowerCase()){
                 restart_game_msg(`@${first_player} tu ne peux pas défier le bot !`);
                 return;
             };
@@ -377,7 +464,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     return;
                 }
                 else{
-                    // ImuniterUser(second_player)
+                    ImuniterUser(second_player);
                     message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
                     game = "waiting response";
                     temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
@@ -392,19 +479,15 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
         clearTimeout(temps_de_reponse);//On enlève le timer qui pesait sur le temsps de réponse pour accepter la game car il a rep 
 
-        if (message.toLowerCase() == "accepte"){
+        if (message.toLowerCase() == "accepte" || message.toLowerCase() == "accepter"){
             message_tchat(`@${first_player} , @${second_player} Tenais vous prêt la partie va commencer dans 10 secondes !`);
-
-            console.log("start");
-
             timer_rep_accepte(4);
-
         }
-        else {
-            console.log("refuse");
-            Penaliter(second_player);
-            client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
-            restart_game_msg(`@${second_player} n'a pas accepter de jouer . Il aura donc une pénaliter !`);
+        else if(message.toLowerCase() == "refuse" || message.toLowerCase() == "refuser"){
+            // console.log("refuse");
+            // Penaliter(second_player);
+            // client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
+            restart_game_msg(`@${second_player} n'a pas accepter de jouer . @${first_player} tu peux toujours défier quelqu'un d'autre :) `);
             return;
         };
     };
@@ -416,8 +499,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                 if (final_msg === -1){
                     message_tchat(`@${second_player} a gagner car @${first_player} n'a pas bien répondu`);
 
-                    Resultat(second_player, "Win");
-                    Resultat(first_player, "Lose");
+                    Resultat(first_player, second_player, "Lose");
 
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep donc ta perdu`);
 
@@ -439,8 +521,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                     message_tchat(`@${first_player} a gagner car @${second_player} n'a pas bien répondu`);
         
-                    Resultat(first_player, "Win");
-                    Resultat(second_player, "Lose");
+                    Resultat(first_player, second_player, "Win");
 
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
 
@@ -470,9 +551,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     message_tchat(`@${first_player} a gagner GG a lui `);
 
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a perdu `);
-                    Resultat(first_player, "Win");
-                    Resultat(second_player, "Lose");
-
+                    Resultat(first_player, second_player, "Win");
 
                     restart_game();
                     return;
@@ -481,13 +560,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                 default ://J2 win
 
                     message_tchat(`@${second_player} a gagner GG a lui `);
-
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a perdu `);
-
-                    Resultat(second_player, "Win");
-                    Resultat(first_player, "False");
-
-                    
+                    Resultat(first_player, second_player, "Lose");
                     restart_game();
                     return;
 
