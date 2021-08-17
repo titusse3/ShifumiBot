@@ -35,7 +35,6 @@ setInterval(() => {
     TimeData = fs.readFileSync('./TimeFile.json');
     TimeData = JSON.parse(TimeData);
     nb_seconde_rep = TimeData["NbSecondeAccepte"], nb_seconde_rep_game = TimeData["NbSecondeRep"], timout_duree= TimeData["Timeout"], TempsImuniter = TimeData["ImmuniterTime"], TempsShiFuMi = TimeData["TempsShiFuMi"];
-    console.log(nb_seconde_rep);
 }, 10000);
 
 
