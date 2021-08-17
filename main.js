@@ -1,8 +1,8 @@
 require('dotenv').config()
 const tmi = require('tmi.js');
 const {MongoClient} = require('mongodb');
-const readline = require('readline');
-const { ESTALE } = require('constants');
+const fs = require('fs');
+
 
 
 const chanelle = "redklebg"
@@ -22,101 +22,29 @@ const client = new tmi.client(opts);
 var target, temps_de_reponse;
 var first_player = undefined, second_player=undefined;
 var game = false ;//Etat de la games
-var nb_seconde_rep = 30000, nb_seconde_rep_game = 5500, timout_duree= 15, TempsImuniter = 3600000;
+// var nb_seconde_rep = 30000, nb_seconde_rep_game = 5500, timout_duree= 15, TempsImuniter = 3600000, TempsShiFuMi = 2500;
+var TimeData = fs.readFileSync('./TimeFile.json');
+TimeData = JSON.parse(TimeData);
+
+
+
+var nb_seconde_rep = TimeData["NbSecondeAccepte"], nb_seconde_rep_game = TimeData["NbSecondeRep"], timout_duree= TimeData["Timeout"], TempsImuniter = TimeData["ImmuniterTime"], TempsShiFuMi = TimeData["TempsShiFuMi"];
+console.log(nb_seconde_rep);
+
+setInterval(() => {
+    TimeData = fs.readFileSync('./TimeFile.json');
+    TimeData = JSON.parse(TimeData);
+    nb_seconde_rep = TimeData["NbSecondeAccepte"], nb_seconde_rep_game = TimeData["NbSecondeRep"], timout_duree= TimeData["Timeout"], TempsImuniter = TimeData["ImmuniterTime"], TempsShiFuMi = TimeData["TempsShiFuMi"];
+    console.log(nb_seconde_rep);
+}, 10000);
+
+
 var rep_p1, rep_p2;
 var tab_rep_player = [];
 var J1_a_rep = false, J2_a_rep=false;
 var ciseaux = 0, pierre=1,feuille=2;
 var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille", "papier", "papie"];
-var tabCommande = ["Change anwsert time on acceptation", "Change anwsert time on Game", "Change timeout length", "Change imunity length", "Exit"];
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-function QuestionCommand(){
-    rl.question(`What do you want ? \n - ${tabCommande.join(' \n - ')}\n> `, (answer) => {
-        let rep = tabCommande.find(element=>element.toLowerCase() === answer.toLowerCase());
-        switch (rep) {
-            case "Change anwsert time on acceptation":
-                ChangeTime("StartGame");
-                break;    
-            case "Change anwsert time on Game":
-                ChangeTime("RepGame");    
-                break;
-            case "Change timeout length":
-                ChangeTime("Timeout");        
-                break;      
-            case "Change imunity length":
-                ChangeTime("Immunite");        
-                break;                    
-            case "Exit":
-                console.log("Bye Bye !");
-                rl.close();
-                break;
-            default:
-                console.log('Command invalid . Please write a valid answer .');
-                setTimeout(QuestionCommand, 2000);
-                break;
-        }
-    });
-};
-
-function ChangeTime(variable){
-    switch (variable) {
-        case "StartGame":
-            rl.question(`How much time for the new acceptation time (in seconde) ? `, (NewTime) => {
-                if(parseInt(NewTime)){
-                    nb_seconde_rep = parseInt(NewTime) * 1000;
-                    console.log(`The acceptation time is now at ${nb_seconde_rep/1000} seconde`);
-                }
-                else{
-                    ChangeTime("StartGame");
-                }
-                setTimeout(QuestionCommand, 1000);
-            });
-            break;
-        case "RepGame":
-            rl.question(`How much time for the new reponse in game (in seconde) ? `, (NewTime) => {
-                if(parseInt(NewTime)){
-                    nb_seconde_rep_game = parseInt(NewTime) * 1000;
-                    console.log(`The reponse in game time is now at ${nb_seconde_rep_game/1000} seconde`);
-                }
-                else{
-                    ChangeTime("RepGame");
-                }
-                setTimeout(QuestionCommand, 1000);
-            });
-            break;
-        case "Timeout":
-            rl.question(`How much time for the new timout in game (in seconde) ? `, (NewTime) => {
-                if(parseInt(NewTime)){
-                    timout_duree = parseInt(NewTime);
-                    console.log(`The timeout time is now at ${timout_duree} seconde`);
-                }
-                else{
-                    ChangeTime("Timeout");
-                }
-                setTimeout(QuestionCommand, 1000);
-            });
-            break;
-        case "Immunite":
-            rl.question(`How much time for the new immunity value (in seconde) ? `, (NewTime) => {
-                if(parseInt(NewTime)){
-                    TempsImuniter = parseInt(NewTime)*1000;
-                    console.log(`The immunity time is now at ${TempsImuniter/1000} seconde`);
-                }
-                else{
-                    ChangeTime("Immunite");
-                }
-                setTimeout(QuestionCommand, 1000);
-            });
-            break;
-    }
-}
-
-QuestionCommand();
 
 client.on('message', commandeHandler);
 // Connect to Twitch:
@@ -180,7 +108,7 @@ function timer_1(temps) {
     return new Promise(resolve => {
         setTimeout(() => {
             resolve(temps - 1);
-        }, 2500);
+        }, TempsShiFuMi);
     });
 }
 
