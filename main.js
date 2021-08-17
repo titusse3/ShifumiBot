@@ -22,12 +22,12 @@ const client = new tmi.client(opts);
 var target, temps_de_reponse;
 var first_player = undefined, second_player=undefined;
 var game = false ;//Etat de la games
-var nb_seconde_rep = 30000, nb_seconde_rep_game = 4500, timout_duree= 15, TempsImuniter = 3600000;
+var nb_seconde_rep = 30000, nb_seconde_rep_game = 5500, timout_duree= 15, TempsImuniter = 3600000;
 var rep_p1, rep_p2;
 var tab_rep_player = [];
 var J1_a_rep = false, J2_a_rep=false;
 var ciseaux = 0, pierre=1,feuille=2;
-var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille"];
+var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille", "papier", "papie"];
 var tabCommande = ["Change anwsert time on acceptation", "Change anwsert time on Game", "Change timeout length", "Change imunity length", "Exit"];
 
 const rl = readline.createInterface({
@@ -134,6 +134,7 @@ function getChatters(channel, callback){
         callback(body);
     });
 };
+
 
 function restart_game_msg(msg){
     message_tchat(`La partie ne vas pas commencer car ${msg}`);
@@ -410,13 +411,13 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
     };
 
     if (message.toLowerCase() === "!discord" && game == false ){//regarde la commande de lancement de party 
-        message_tchat(`https://discord.com/invite/ub7qy56X`);
+        message_tchat(`https://discord.gg/fMQ6QR8sEJ`);
         return;
     };
 
-    if (message.toLowerCase() === "!immunite" && game == false ){//regarde la commande de lancement de party 
-        Imuniter(context['display-name'].toLowerCase());
-    };
+    // if (message.toLowerCase() === "!immunite" && game == false ){//regarde la commande de lancement de party 
+    //     Imuniter(context['display-name'].toLowerCase());
+    // };
 
     if (message[0] == "!"){//regarde utilisation commande
         if (message.split(' ')[0].substr(1) == "shifumi" && game == false ){
