@@ -108,7 +108,7 @@ function timer_1(temps) {
             resolve(temps - 1);
         }, TempsShiFuMi);
     });
-}
+};
 
 async function timer_rep_accepte(temps) {
     while (temps != 1) {
@@ -130,7 +130,7 @@ async function timer_rep_accepte(temps) {
     rep_p1 = setTimeout(jour_pas_rep_game, nb_seconde_rep_game, first_player);
 
     rep_p2 = setTimeout(jour_pas_rep_game, nb_seconde_rep_game, second_player);
-}
+};
 
 async function Imuniter(UserCommande){
     const uri = process.env.URL;
@@ -152,7 +152,7 @@ async function Imuniter(UserCommande){
         await client.close();
         return;
     }
-}
+};
 
 
 
@@ -175,7 +175,7 @@ async function Penaliter(user){
     } finally {
         await client.close();
     }
-}
+};
 
 function jour_pas_rep_game(joueur=undefined){
     message_tchat(` @${joueur} n'as pas répondu il a donc perdu `);
@@ -188,7 +188,7 @@ function jour_pas_rep_game(joueur=undefined){
         client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
     }
     restart_game()
-}
+};
 
 function VerifRep(msg){
     msg = msg.split(' ')[0];
@@ -204,7 +204,7 @@ function VerifRep(msg){
     else{
         return -1;
     }
-}
+};
 
 
 function SeakWinner(tab){
@@ -296,7 +296,7 @@ async function Resultat(user1, user2, resulte){
         await client.close();
         return;
     }
-}
+};
 
 async function ImuniterUser(user){
     const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
@@ -315,13 +315,13 @@ async function ImuniterUser(user){
         await client.close();
         return;
     }
-}
+};
 
 function J2PasRep(){
     client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
     Penaliter(second_player)
     restart_game_msg(`@${second_player} n'a pas répondu il aura donc une pénaliter !`);
-}
+};
 
 //target = pseudo , context = toute les info sur le user , msg = le message , self = au bot  
 function commandeHandler(targe , context, msg, self){// fonction appeler a chaque message du tchat 
