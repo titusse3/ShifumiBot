@@ -2,6 +2,7 @@ require('dotenv').config()
 const tmi = require('tmi.js');
 const {MongoClient} = require('mongodb');
 const fs = require('fs');
+const fetch = require('node-fetch');
 
 
 
@@ -43,6 +44,8 @@ var J1_a_rep = false, J2_a_rep=false;
 var ciseaux = 0, pierre=1,feuille=2;
 var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille", "papier", "papie"];
 
+var EloDebut = 1000;
+var nbGamePlacement = 5;
 
 client.on('message', commandeHandler);
 // Connect to Twitch:
@@ -99,7 +102,7 @@ function restart_game_for_darw(){
 }
 
 function message_tchat(msg){
-    client.say(target,`/me : ${msg}`);
+    client.say(target,`${msg}`);
 };
 
 function timer_1(temps) {
@@ -135,11 +138,13 @@ async function timer_rep_accepte(temps) {
 async function Imuniter(UserCommande){
     const uri = process.env.URL;
     const client = new MongoClient(uri);
+    let UserIdImune = await IdUser(UserCommande);
+    UserIdImune = UserIdImune.data[0].id;
     
     try {
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
-        const user = await collection.find({User : UserCommande.toLowerCase()}).toArray();
+        const user = await collection.find({UserId : UserIdImune}).toArray();
         if(user.length === 0){
             message_tchat(`@${UserCommande} tu n'a encore jamais joué tu n'a donc pas d'imuniter`);
         }
@@ -157,18 +162,20 @@ async function Imuniter(UserCommande){
 
 
 async function Penaliter(user){
-    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const uri =  process.env.URL;
     const client = new MongoClient(uri);
+    let UserIdPenal = await IdUser(user);
+    // UserIdPenal = UserIdPenal.data[0].id;
     
     try {
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
-        let userObj = await collection.find({User:user}).toArray();
+        let userObj = await collection.find({UserId:UserIdPenal.data[0].id}).toArray();
         if ( userObj.length === 1){
-            await collection.updateOne({User : user}, {$set : {Imune: new Date()}});
+            await collection.updateOne({UserId : UserIdPenal.data[0].id}, {$set : {Imune: new Date()}});
         }
         else {
-            await collection.updateOne({User : user}, {$setOnInsert:{User : user, Victoire:0, Game : 0, Imune : new Date()}}, {upsert : true});
+            await collection.updateOne({UserId : UserIdPenal.data[0].id}, {$setOnInsert:{User : User,UserId : UserIdPenal.data[0].id, Victoire:0, Game : 0, Imune : new Date()}}, {upsert : true});
         }
     } catch (e) {
         console.error(e);
@@ -181,10 +188,10 @@ function jour_pas_rep_game(joueur=undefined){
     message_tchat(` @${joueur} n'as pas répondu il a donc perdu `);
 
     if (joueur == first_player){
-        Resultat(first_player, second_player, "Lose");
+        Resultat(first_player, second_player);
         client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep `);
     }else{
-        Resultat(first_player, second_player, "Win");
+        Resultat(first_player, second_player);
         client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
     }
     restart_game()
@@ -230,24 +237,25 @@ function SeakWinner(tab){
 
 async function palmares(userPalmares) {//fonction qui repond a la commande palmares 
 
-    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const uri =  process.env.URL;
     const client = new MongoClient(uri);
+    let IdUserPalmares = await IdUser(userPalmares);
 
     try {
 
         await client.connect();
         const collect = await client.db("ShifumiBotV2").collection('Palmares');
-        const tabTop3 = await collect.find().sort({Victoire : -1}).limit(3).toArray();
+        const tabTop3 = await collect.find().sort({Elo : -1}).limit(3).toArray();
         let allUser;
         let User;
         let classement;
 
-        if(tabTop3.find(element=>element.User === userPalmares) !== undefined){
+        if(tabTop3.find(element=>element.UserId === IdUserPalmares.data[0].id) !== undefined){
             message_tchat(message_palmares(tabTop3));
         }
         else{
             allUser = await collect.find().toArray();
-            User = allUser.find(element => element.User === userPalmares);
+            User = allUser.find(element => element.UserId === IdUserPalmares.data[0].id);
             classement = allUser.indexOf(User) + 1;
             if (User !== undefined){
                 message_tchat(message_palmares(tabTop3, User, classement));
@@ -268,28 +276,77 @@ async function palmares(userPalmares) {//fonction qui repond a la commande palma
 
 function message_palmares(tab_user, user, classement) {// fonction qui revoir le message pour le palmares
     let msg_classement = ``;
-    tab_user.forEach((x) => { msg_classement += ` ${tab_user.indexOf(x) + 1}° ${x.User} (${x.Victoire} win / ${x.Game} game) |`});
+    tab_user.forEach((x) => { msg_classement += ` ${tab_user.indexOf(x) + 1}° ${x.User} (${x.Victoire} w/${x.Game}) |`});
     if (user != undefined)
-        msg_classement += ` ... ${classement}° ${user.User} (${user.Victoire} win / ${user.Game} game) | `;
+        msg_classement += ` ... ${classement + 1}° ${user.User} (${user.Victoire} w/${user.Game}) | `;
 
     return msg_classement !== "" ? msg_classement : "Personne n'a encore jouer soit le premier :)";
 };
 
-async function Resultat(user1, user2, resulte){
-    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+async function IdUser(user){
+    const response = await fetch(`https://api.twitch.tv/helix/users?login=${user.toLowerCase()}`, {'method': 'GET', 'headers': {'Authorization': process.env.AUTHORIZATION, 'Client-Id': process.env.CLIENT_ID}});
+    const json = await response.json();
+    return json
+};
+
+function Probability(rating1, rating2){
+    return 1.0 / (1 + Math.pow(10, - 1 * ((rating1 - rating2) / 400)))
+};
+
+function EloPlayer(G, P){
+    let Elo = [];
+    let K1 = 40, K2 = 40;
+    if((G.length !== 0 && G[0].Elo !== undefined) && (P.length !== 0 && P[0].Elo !== undefined)){
+        K1 = G[0].Game > nbGamePlacement ? 20 : 40;
+        K2 = P[0].Game > nbGamePlacement ? 20 : 40;
+        Elo.push(K1*(1-Probability(G[0].Elo, P[0].Elo)));
+        Elo.push(K2*(0-Probability(P[0].Elo, G[0].Elo)));
+    }
+    else if((G.length !== 0 && G[0].Elo !== undefined) && P.length === 0){
+        K1 = G[0].Game > nbGamePlacement ? 20 : 40;
+        Elo.push(K1*(1-Probability(G[0].Elo, EloDebut)));
+        Elo.push(K2*(0-Probability(EloDebut, G[0].Elo)));
+    }
+    else if(G.length === 0  && (P.length !== 0 && P[0].Elo !== undefined)){
+        K2 = P[0].Game > nbGamePlacement ? 20 : 40;
+        Elo.push(K1*(1-Probability(EloDebut, P[0].Elo)));
+        Elo.push(K2*(0-Probability(P[0].Elo, EloDebut)));
+    }
+    else {
+        Elo.push(K1*(1-Probability(EloDebut, EloDebut)));
+        Elo.push(K2*(0-Probability(EloDebut, EloDebut)));
+    };
+    Elo[0] = Math.round(Elo[0]);
+    Elo[1] = Math.round(Elo[1]);
+    return Elo;
+};
+
+async function Resultat(Gagnant, Perdant){
+    const uri =  process.env.URL;
     const client = new MongoClient(uri);
+    let EloArray;
+    let IdUser1 = await IdUser(Gagnant), IdUser2 = await IdUser(Perdant);
+    IdUser1 = IdUser1.data[0].id;
+    IdUser2 = IdUser2.data[0].id;
 
     try {
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
-        if (resulte === "Win"){
-            await collection.updateOne({User : user1}, {$inc:{Victoire:1, Game : 1}, $set : {User : user1}}, {upsert : true});
-            await collection.updateOne({User : user2}, {$inc:{Victoire:0, Game : 1}, $set : {User : user2, Imune : new Date()}}, {upsert : true});
-        }
-        else{
-            await collection.updateOne({User : user1}, {$inc:{Victoire:0, Game : 1}, $set : {User : user1}}, {upsert : true});
-            await collection.updateOne({User : user2}, {$inc:{Victoire:1, Game : 1}, $set : {User : user2, Imune : new Date()}}, {upsert : true});
-        }
+        let Joueur1 = await collection.find({UserId : IdUser1}).toArray();
+        let Joueur2 = await collection.find({UserId : IdUser2}).toArray();
+        EloArray = EloPlayer(Joueur1, Joueur2);
+
+
+        if (Joueur1.length === 0){
+            await collection.updateOne({UserId : IdUser1}, {$inc:{Victoire:1, Game : 1}, $setOnInsert : {User : Gagnant, UserId : IdUser1, Elo : EloDebut+EloArray[0]}}, {upsert : true});
+        }else{
+            await collection.updateOne({UserId : IdUser1}, {$inc:{Victoire:1, Game : 1, Elo : EloArray[0]}, $set : {User : Gagnant}}, {upsert : true});
+        };
+        if (Joueur2.length === 0){
+            await collection.updateOne({UserId : IdUser2}, {$inc:{Victoire:0, Game : 1}, $set : {Imune : new Date()}, $setOnInsert : {User : Perdant, UserId : IdUser2, Elo : EloDebut+EloArray[1]}}, {upsert : true});
+        }else{
+            await collection.updateOne({UserId : IdUser2}, {$inc:{Victoire:0, Game : 1, Elo : EloArray[1]}, $set : {Imune : new Date(), User : Perdant}}, {upsert : true});
+        };
     } catch (e) {
         console.error(e);
     } finally {
@@ -297,15 +354,18 @@ async function Resultat(user1, user2, resulte){
         return;
     }
 };
+// Resultat("Kameto", "toutse_")
 
 async function ImuniterUser(user){
-    const uri = "mongodb+srv://Tituse:Theo76160@cluster0.lj1ma.mongodb.net/test?retryWrites=true&w=majority";
+    const uri =  process.env.URL;
     const client = new MongoClient(uri);
+    let UserIdImmuniter = await IdUser(user);
+    UserIdImmuniter = UserIdImmuniter.data[0].id;
 
     try {
         await client.connect();
         const collect = await client.db("ShifumiBotV2").collection('Palmares');
-        const User = await collect.find({User:user}).toArray();
+        const User = await collect.find({UserId:UserIdImmuniter}).toArray();
         if(User.length === 1 && new Date() - User[0].Imune <= TempsImuniter){
             restart_game_msg(`${second_player} a une imuniter tu ne peux donc pas le défier`);
         }
@@ -322,6 +382,30 @@ function J2PasRep(){
     Penaliter(second_player)
     restart_game_msg(`@${second_player} n'a pas répondu il aura donc une pénaliter !`);
 };
+
+async function GetEloPlayer(Player){
+    const url =  process.env.URL;
+    const client = new MongoClient(url);
+    let PlayerId = await IdUser(Player);
+    PlayerId = PlayerId.data[0].id;
+
+    try {
+        await client.connect();
+        const collection = await client.db("ShifumiBotV2").collection('Palmares');
+        let PLayerObj = await collection.find({UserId : PlayerId}).toArray();
+        if(PLayerObj.length === 0){
+            message_tchat("tu n'a pas d'elo car tu na pas encore jouer");
+        }
+        else{
+            message_tchat(`@${PLayerObj[0].User} tu a ${PLayerObj[0].Elo} d'elo`);
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        await client.close();
+        return;
+    }
+}
 
 //target = pseudo , context = toute les info sur le user , msg = le message , self = au bot  
 function commandeHandler(targe , context, msg, self){// fonction appeler a chaque message du tchat 
@@ -353,10 +437,14 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         };
 
         if (message.split(' ')[0].substr(1) == "palmares" && game == false ){
-
             palmares(context['display-name'].toLowerCase());
+            return;
         };
 
+        if (message.split(' ')[0].substr(1).toLowerCase() === "elo" && game == false ){
+            GetEloPlayer(context['display-name'].toLowerCase());
+            return;
+        };
 
         if (message === "!duel"){
             message_tchat(` @${context['display-name']} Tu dois identifier une personne pour lancer la partie ! `);
@@ -411,9 +499,6 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
             timer_rep_accepte(4);
         }
         else if(message.toLowerCase() == "refuse" || message.toLowerCase() == "refuser"){
-            // console.log("refuse");
-            // Penaliter(second_player);
-            // client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
             restart_game_msg(`@${second_player} n'a pas accepter de jouer . @${first_player} tu peux toujours défier quelqu'un d'autre :) `);
             return;
         };
@@ -426,7 +511,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                 if (final_msg === -1){
                     message_tchat(`@${second_player} a gagner car @${first_player} n'a pas bien répondu`);
 
-                    Resultat(first_player, second_player, "Lose");
+                    Resultat(first_player, second_player);
 
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep donc ta perdu`);
 
@@ -448,7 +533,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                     message_tchat(`@${first_player} a gagner car @${second_player} n'a pas bien répondu`);
         
-                    Resultat(first_player, second_player, "Win");
+                    Resultat(first_player, second_player);
 
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
 
@@ -478,7 +563,7 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
                     message_tchat(`@${first_player} a gagner GG a lui `);
 
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a perdu `);
-                    Resultat(first_player, second_player, "Win");
+                    Resultat(first_player, second_player);
 
                     restart_game();
                     return;
@@ -488,7 +573,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
 
                     message_tchat(`@${second_player} a gagner GG a lui `);
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a perdu `);
-                    Resultat(first_player, second_player, "Lose");
+                    Resultat(first_player, second_player);
+
                     restart_game();
                     return;
 
