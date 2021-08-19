@@ -8,7 +8,7 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-var tabCommande = ["Change anwsert time on acceptation", "Change anwsert time on Game", "Change timeout length", "Change imunity length", "Change ShiFuMi Timer launch", "Exit"];
+var tabCommande = ["Change anwsert time on acceptation", "Change anwsert time on Game", "Change timeout length", "Change imunity length", "Change ShiFuMi Timer launch", "Change Elo Start", "Change PLacement Game number", "Change reward cost", "Exit"];
 
 function QuestionCommand(){
     rl.question(`What do you want ? \n - ${tabCommande.join(' \n - ')}\n> `, (answer) => {
@@ -28,7 +28,16 @@ function QuestionCommand(){
                 break;         
             case ("Change ShiFuMi Timer launch"):
                 ChangeTime("ShiFuMi" || tabCommande.indexOf("Change ShiFuMi Timer launch"));        
-                break;              
+                break;
+            case ("Change Elo Start"):
+                ChangeTime("EloStart" || tabCommande.indexOf("Change Elo Start"));        
+                break;
+            case ("Change PLacement Game number"):
+                ChangeTime("NbPLacement" || tabCommande.indexOf("Change PLacement Game number"));        
+                break;       
+            case ("Change reward cost"):
+                ChangeTime("RewardCost" || tabCommande.indexOf("Change reward cost"));        
+                break;        
             case ("Exit"):
                 console.log("Bye Bye !" || tabCommande.indexOf("Exit"));
                 rl.close();
@@ -103,6 +112,43 @@ function ChangeTime(variable){
                 if(parseInt(NewTime)){
                     TimeData["TempsShiFuMi"] = parseInt(NewTime)*1000;
                     console.log(`The immunity time is now at ${TimeData["TempsShiFuMi"]/1000} seconde`);
+                    fs.writeFileSync('./TimeFile.json', JSON.stringify(TimeData));
+                }
+                else{
+                    ChangeTime("Immunite");
+                }
+                setTimeout(QuestionCommand, 1000);
+            });
+
+        case "EloStart":
+            rl.question(`How much for the new Elo on start Game ? `, (NewTime) => {
+                if(parseInt(NewTime)){
+                    TimeData["EloDebut"] = parseInt(NewTime);
+                    console.log(`The new starting elo is ${TimeData["EloDebut"]} elo`);
+                    fs.writeFileSync('./TimeFile.json', JSON.stringify(TimeData));
+                }
+                else{
+                    ChangeTime("Immunite");
+                }
+                setTimeout(QuestionCommand, 1000);
+            });
+        case "NbPLacement":
+            rl.question(`How much Placement game for the game ? `, (NewTime) => {
+                if(parseInt(NewTime)){
+                    TimeData["NbGamePLacement"] = parseInt(NewTime);
+                    console.log(`The new number of placement game is ${TimeData["NbGamePLacement"]} game`);
+                    fs.writeFileSync('./TimeFile.json', JSON.stringify(TimeData));
+                }
+                else{
+                    ChangeTime("Immunite");
+                }
+                setTimeout(QuestionCommand, 1000);
+            });
+        case "RewardCost":
+            rl.question(`How much for the new reward cost (in chaine points)? `, (NewTime) => {
+                if(parseInt(NewTime)){
+                    TimeData["RewardCost"] = parseInt(NewTime);
+                    console.log(`The new cost of the reward is ${TimeData["RewardCost"]} chaine points`);
                     fs.writeFileSync('./TimeFile.json', JSON.stringify(TimeData));
                 }
                 else{

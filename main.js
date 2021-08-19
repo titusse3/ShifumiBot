@@ -3,6 +3,7 @@ const tmi = require('tmi.js');
 const {MongoClient} = require('mongodb');
 const fs = require('fs');
 const fetch = require('node-fetch');
+const { env } = require('process');
 
 
 
@@ -23,20 +24,15 @@ const client = new tmi.client(opts);
 var target, temps_de_reponse;
 var first_player = undefined, second_player=undefined;
 var game = false ;//Etat de la games
-// var nb_seconde_rep = 30000, nb_seconde_rep_game = 5500, timout_duree= 15, TempsImuniter = 3600000, TempsShiFuMi = 2500;
+
 var TimeData = fs.readFileSync('./TimeFile.json');
 TimeData = JSON.parse(TimeData);
-
-
-
-var nb_seconde_rep = TimeData["NbSecondeAccepte"], nb_seconde_rep_game = TimeData["NbSecondeRep"], timout_duree= TimeData["Timeout"], TempsImuniter = TimeData["ImmuniterTime"], TempsShiFuMi = TimeData["TempsShiFuMi"];
-
+var nb_seconde_rep = TimeData["NbSecondeAccepte"], nb_seconde_rep_game = TimeData["NbSecondeRep"], timout_duree= TimeData["Timeout"], TempsImuniter = TimeData["ImmuniterTime"], TempsShiFuMi = TimeData["TempsShiFuMi"], EloDebut = TimeData["EloDebut"], nbGamePlacement=TimeData["NbGamePLacement"], RewardCost=TimeData["RewardCost"];
 setInterval(() => {
     TimeData = fs.readFileSync('./TimeFile.json');
     TimeData = JSON.parse(TimeData);
-    nb_seconde_rep = TimeData["NbSecondeAccepte"], nb_seconde_rep_game = TimeData["NbSecondeRep"], timout_duree= TimeData["Timeout"], TempsImuniter = TimeData["ImmuniterTime"], TempsShiFuMi = TimeData["TempsShiFuMi"];
+    nb_seconde_rep = TimeData["NbSecondeAccepte"], nb_seconde_rep_game = TimeData["NbSecondeRep"], timout_duree= TimeData["Timeout"], TempsImuniter = TimeData["ImmuniterTime"], TempsShiFuMi = TimeData["TempsShiFuMi"], EloDebut = TimeData["EloDebut"], nbGamePlacement=TimeData["NbGamePLacement"], RewardCost=TimeData["RewardCost"];
 }, 10000);
-
 
 var rep_p1, rep_p2;
 var tab_rep_player = [];
@@ -44,11 +40,22 @@ var J1_a_rep = false, J2_a_rep=false;
 var ciseaux = 0, pierre=1,feuille=2;
 var TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille", "papier", "papie"];
 
-var EloDebut = 1000;
-var nbGamePlacement = 5;
+var BodyReward = {
+    title: "Defier quelqu'un au ShiFuMi",
+    cost: RewardCost,
+    prompt:"Regles du Shifumi : Identifie une personnes sur le tchat pour jouer contre lui (sous la forme @<UserName>), Ensuite ecris pierre, feuille ou ciseaux apres le compteure pour jouer ! Bon jeux !",
+    background_color:"#23fe86",
+    is_user_input_required:true,
+    is_global_cooldown_enabled:true,
+    global_cooldown_seconds:200000,
+};
+
+var idReward = undefined;
+var RedemeptionID;
+var BroadcasterId = process.env.BROADCASTERID;
 
 client.on('message', commandeHandler);
-// Connect to Twitch:
+
 client.connect();
 
 function getChatters(channel, callback){
@@ -99,7 +106,7 @@ function restart_game_for_darw(){
     clearTimeout(rep_p2);
     clearTimeout(temps_de_reponse);
     timer_rep_accepte(4);
-}
+};
 
 function message_tchat(msg){
     client.say(target,`${msg}`);
@@ -128,10 +135,8 @@ async function timer_rep_accepte(temps) {
                 break;
         }
     };
-
     game = true;
     rep_p1 = setTimeout(jour_pas_rep_game, nb_seconde_rep_game, first_player);
-
     rep_p2 = setTimeout(jour_pas_rep_game, nb_seconde_rep_game, second_player);
 };
 
@@ -354,7 +359,6 @@ async function Resultat(Gagnant, Perdant){
         return;
     }
 };
-// Resultat("Kameto", "toutse_")
 
 async function ImuniterUser(user){
     const uri =  process.env.URL;
@@ -381,6 +385,7 @@ function J2PasRep(){
     client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
     Penaliter(second_player)
     restart_game_msg(`@${second_player} n'a pas répondu il aura donc une pénaliter !`);
+    restart_redemption(RedemeptionID, true);
 };
 
 async function GetEloPlayer(Player){
@@ -407,89 +412,159 @@ async function GetEloPlayer(Player){
     }
 }
 
+async function creatCustomReward(){
+    let res = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${BroadcasterId}`, {'method': 'POST', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID, 'Content-Type' : 'application/json'}, 'body' : JSON.stringify(BodyReward)});
+    res = await res.json();
+    idReward = res.data[0].id;
+};
+
+function GetCustomReward(){
+    fetch(
+        `https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${BroadcasterId}`,
+        {'method': 'GET', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID}}
+    ).then((res)=> {return res.json()})
+    .then((json)=>{
+        if (json.data.length === 0 || json.data.find(element=>element.title === BodyReward.title) === undefined){
+            creatCustomReward();
+        }else{
+            idReward = json.data[0].id;
+        };
+        RewardRedemption();
+    });
+};
+
+function restart_redemption(RedemprionId, Win){
+    let statueRdemption = Win ? "CANCELED" : "FULFILLED";
+    fetch(
+        `https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?id=${RedemprionId}&broadcaster_id=${BroadcasterId}&reward_id=${idReward}`,
+        {'method': 'PATCH', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID, 'Content-Type': 'application/json'}, 'body' : JSON.stringify({status: statueRdemption})}
+    ).then((res)=> {return res.json()}).then((json)=>{Delete();});
+}
+
+async function Delete(){
+    let res = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${BroadcasterId}&id=${idReward}`,{'method': 'DELETE', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID}});
+    // console.log(res.status);
+    if (res !== 204){
+        console.log(res.status);
+    };
+    GetCustomReward();
+};
+
+
+async function RewardRedemption(){
+    let redemeption = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?broadcaster_id=${BroadcasterId}&reward_id=${idReward}&status=UNFULFILLED`,{'method': 'GET', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID}});
+    redemeption = await redemeption.json();
+
+    if(redemeption.data !== undefined && redemeption.data[0]!==undefined){
+        if (game === false){
+            RedemeptionID = redemeption.data[0].id;
+
+            first_player = redemeption.data[0].user_name.toLowerCase();
+
+            second_player = redemeption.data[0].user_input.toLowerCase().split(' ')[0].replace('@', '');
+            switch (second_player) {
+                case process.env.BOT_NAME.toLowerCase():
+                    restart_game_msg(`@${first_player} tu ne peux pas défier le bot !`);
+                    restart_redemption(RedemeptionID, true);
+                    return;
+                case first_player:
+                    restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
+                    restart_redemption(RedemeptionID, true);
+                    return;
+            };
+            getChatters(chanelle, (response) => {
+                let tab = [...response.chatters.broadcaster, ...response.chatters.viewers, ...response.chatters.vips, ...response.chatters.moderators, ...response.chatters.staff, ...response.chatters.admins];
+        
+                if (tab.indexOf(second_player) === -1){
+                    restart_game_msg(` @${second_player} n'est pas la !`);
+                    restart_redemption(RedemeptionID, true);
+                }else{
+                    message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
+                    game = "waiting response";
+                    temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
+                };
+                return;
+            });
+        };
+    }
+    else{
+        setTimeout(RewardRedemption, 1 * 1000);
+    };
+};
+
+GetCustomReward();
+
 //target = pseudo , context = toute les info sur le user , msg = le message , self = au bot  
 function commandeHandler(targe , context, msg, self){// fonction appeler a chaque message du tchat 
     if (self) { return; }; // Pour que le bot ne considère pas ces propres messages
-
     target = targe;
-
     let message = msg.trim();// supp white space 
+    if (message[0] == "!"  && game == false ){//regarde utilisation commande
+        if (message.split(' ')[0].substr(1) === "opgg"){//regarde la commande de lancement de party 
+            message_tchat(`https://euw.op.gg/summoner/userName=mdvfjz`);
+            return;
+        };
+    
+        if (message.split(' ')[0].substr(1) === "discord"){//regarde la commande de lancement de party 
+            message_tchat(`https://discord.gg/fMQ6QR8sEJ`);
+            return;
+        };
 
-    if (message.toLowerCase() === "!opgg" && game == false ){//regarde la commande de lancement de party 
-        message_tchat(`https://euw.op.gg/summoner/userName=mdvfjz`);
-        return;
-    };
-
-    if (message.toLowerCase() === "!discord" && game == false ){//regarde la commande de lancement de party 
-        message_tchat(`https://discord.gg/fMQ6QR8sEJ`);
-        return;
-    };
-
-    // if (message.toLowerCase() === "!immunite" && game == false ){//regarde la commande de lancement de party 
-    //     Imuniter(context['display-name'].toLowerCase());
-    // };
-
-    if (message[0] == "!"){//regarde utilisation commande
-        if (message.split(' ')[0].substr(1) == "shifumi" && game == false ){
-
+        if (message.split(' ')[0].substr(1) == "shifumi"){
             message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares | !immunite `);
             return;
         };
 
-        if (message.split(' ')[0].substr(1) == "palmares" && game == false ){
+        if (message.split(' ')[0].substr(1) == "palmares"){
             palmares(context['display-name'].toLowerCase());
             return;
         };
 
-        if (message.split(' ')[0].substr(1).toLowerCase() === "elo" && game == false ){
+        if (message.split(' ')[0].substr(1).toLowerCase() === "elo"){
             GetEloPlayer(context['display-name'].toLowerCase());
             return;
         };
+        // if (message === "!duel"){
+        //     message_tchat(` @${context['display-name']} Tu dois identifier une personne pour lancer la partie ! `);
+        //     return;
+        // };
+        // if (message.split(' ')[0].substr(1) === "duel" && game == false ){//regarde la commande de lancement de party 
+        //     first_player = context['display-name'].toLowerCase(); 
 
-        if (message === "!duel"){
-            message_tchat(` @${context['display-name']} Tu dois identifier une personne pour lancer la partie ! `);
-            return;
-        };
+        //     if (message.split(' ')[1][0] == "@"){
+        //         second_player = message.split(' ')[1].substr(1).toLowerCase();
+        //     }
+        //     else{
+        //         second_player = message.split(' ')[1].toLowerCase();
+        //     }
 
-        if (message.split(' ')[0].substr(1) === "duel" && game == false ){//regarde la commande de lancement de party 
-            first_player = context['display-name'].toLowerCase(); 
+        //     if (second_player === process.env.BOT_NAME.toLowerCase()){
+        //         restart_game_msg(`@${first_player} tu ne peux pas défier le bot !`);
+        //         return;
+        //     };
+        //     if (first_player === second_player){
+        //         restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
+        //         return;
+        //     }
 
-            if (message.split(' ')[1][0] == "@"){
-                second_player = message.split(' ')[1].substr(1).toLowerCase();
-            }
-            else{
-                second_player = message.split(' ')[1].toLowerCase();
-            }
+        //     getChatters(chanelle, (response) => {
+        //         let tab = [...response.chatters.broadcaster, ...response.chatters.viewers, ...response.chatters.vips, ...response.chatters.moderators, ...response.chatters.staff, ...response.chatters.admins];
 
-            if (second_player === process.env.BOT_NAME.toLowerCase()){
-                restart_game_msg(`@${first_player} tu ne peux pas défier le bot !`);
-                return;
-            };
-            if (first_player === second_player){
-                restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
-                return;
-            }
-
-            getChatters(chanelle, (response) => {
-                let tab = [...response.chatters.broadcaster, ...response.chatters.viewers, ...response.chatters.vips, ...response.chatters.moderators, ...response.chatters.staff, ...response.chatters.admins];
-
-                if (tab.indexOf(second_player) === -1){
-                    //don't start match 2 choix : pas la || il s'identfie dans le message 
-                    restart_game_msg(` @${second_player} n'est pas la !`);
-                    return;
-                }
-                else{
-                    // ImuniterUser(second_player);
-                    message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
-                    game = "waiting response";
-                    temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
-                    return;
-                };
-            });
-        };
+        //         if (tab.indexOf(second_player) === -1){
+        //             //don't start match 2 choix : pas la || il s'identfie dans le message 
+        //             restart_game_msg(` @${second_player} n'est pas la !`);
+        //             return;
+        //         }
+        //         else{
+        //             // ImuniterUser(second_player);
+        //             message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
+        //             game = "waiting response";
+        //             temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
+        //             return;
+        //         };
+        //     });
+        // };
     };
-
-
     if (context['display-name'].toLowerCase() === second_player && game == "waiting response"){//recuperation ou non de l'accaptations ou non de la partie par le P2 
 
         clearTimeout(temps_de_reponse);//On enlève le timer qui pesait sur le temsps de réponse pour accepter la game car il a rep 
@@ -500,85 +575,62 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         }
         else if(message.toLowerCase() == "refuse" || message.toLowerCase() == "refuser"){
             restart_game_msg(`@${second_player} n'a pas accepter de jouer . @${first_player} tu peux toujours défier quelqu'un d'autre :) `);
+            restart_redemption(RedemeptionID, true);
             return;
         };
     };
-
     if (game == true){
         if ((context['display-name'].toLowerCase() == first_player) && (J1_a_rep == false)){
                 clearTimeout(rep_p1);
                 final_msg = VerifRep(msg.toLowerCase());
                 if (final_msg === -1){
                     message_tchat(`@${second_player} a gagner car @${first_player} n'a pas bien répondu`);
-
-                    Resultat(first_player, second_player);
-
+                    Resultat(second_player, first_player);
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a pas rep donc ta perdu`);
-
                     restart_game();
+                    restart_redemption(RedemeptionID, false);
                     return;
                 };
-
                 let obj = {};
                 obj[first_player] = final_msg;
                 tab_rep_player.push(obj);
-
                 J1_a_rep = true;
-        }
-        else if((context['display-name'].toLowerCase() == second_player) && (J2_a_rep == false)){
+        }else if((context['display-name'].toLowerCase() == second_player) && (J2_a_rep == false)){
                 clearTimeout(rep_p2);
                 final_msg = VerifRep(msg.toLowerCase());
-
                 if (final_msg == -1){
-
                     message_tchat(`@${first_player} a gagner car @${second_player} n'a pas bien répondu`);
-        
                     Resultat(first_player, second_player);
-
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a pas rep `);
-
                     restart_game();
+                    restart_redemption(RedemeptionID, true);
                     return;
                 };
-
                 let obj = {};
                 obj[second_player] = final_msg;
                 tab_rep_player.push(obj);
-
                 J2_a_rep = true;
-        }
-
-
+        };
         if (tab_rep_player.length == 2){
             switch(SeakWinner(tab_rep_player)){
                 case "Draw" :
                     message_tchat(`@${first_player} , @${second_player} Egalité on recommence dans 10 secondes`);
-
                     restart_game_for_darw();
                     return;
-
-                    break;
                 case "J1" :
-
                     message_tchat(`@${first_player} a gagner GG a lui `);
-
                     client.say(target,`/timeout ${second_player} ${timout_duree} T'a perdu `);
                     Resultat(first_player, second_player);
-
+                    restart_redemption(RedemeptionID,  true);
                     restart_game();
                     return;
-
-                    break;
                 default ://J2 win
-
                     message_tchat(`@${second_player} a gagner GG a lui `);
                     client.say(target,`/timeout ${first_player} ${timout_duree} T'a perdu `);
-                    Resultat(first_player, second_player);
-
+                    Resultat(second_player, first_player);
                     restart_game();
+                    restart_redemption(RedemeptionID, false);
                     return;
-
-                    break;
             }
         }
     }
