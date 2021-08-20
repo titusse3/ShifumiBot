@@ -368,7 +368,7 @@ async function ImuniterUser(user){
         const collect = await client.db("ShifumiBotV2").collection('Palmares');
         const User = await collect.find({UserId:UserIdImmuniter}).toArray();
         if(User.length === 1 && new Date() - User[0].Imune <= TempsImuniter){
-            restart_game_msg(`${second_player} n'a pas accepter le match, de plus il a une imuniter il n'auras donc pas de penaliter !`);
+            restart_game_msg(`Partie annulée car ${second_player} n'a pas accepté le match, de plus il a une imuniter il n'auras donc pas de penaliter !`);
             restart_redemption(RedemeptionID, true);
         }else{
             await Penaliter(second_player, first_player);
@@ -479,7 +479,7 @@ async function RewardRedemption(){
                     restart_game_msg(` @${second_player} n'est pas la !`);
                     restart_redemption(RedemeptionID, true);
                 }else{
-                    message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
+                    message_tchat(`${second_player} veux tu affronter @${first_player} ? accepte/refuse`);
                     game = "waiting response";
                     temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
                 };
