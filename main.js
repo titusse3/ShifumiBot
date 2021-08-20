@@ -368,11 +368,11 @@ async function ImuniterUser(user){
         const collect = await client.db("ShifumiBotV2").collection('Palmares');
         const User = await collect.find({UserId:UserIdImmuniter}).toArray();
         if(User.length === 1 && new Date() - User[0].Imune <= TempsImuniter){
-            restart_game_msg(`${second_player} n'a pas répondu , de plus il a une imuniter n'auras donc pas de penaliter !`);
+            restart_game_msg(`${second_player} n'a pas accepter le match, de plus il a une imuniter il n'auras donc pas de penaliter !`);
             restart_redemption(RedemeptionID, true);
         }else{
             await Penaliter(second_player, first_player);
-            restart_game_msg(`@${second_player} n'a pas répondu il a donc perdu de l'elo !`);
+            restart_game_msg(`@${second_player} n'a pas accepter le match, il a donc perdu de l'elo !`);
             restart_redemption(RedemeptionID, true);
         };
     } catch (e) {
@@ -444,7 +444,7 @@ function restart_redemption(RedemprionId, Win){
 async function Delete(){
     let res = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${BroadcasterId}&id=${idReward}`,{'method': 'DELETE', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID}});
     // console.log(res.status);
-    if (res !== '204'){
+    if (res.status !== 204){
         console.log(res.status);
     };
     GetCustomReward();
@@ -569,10 +569,8 @@ function commandeHandler(targe , context, msg, self){// fonction appeler a chaqu
         if (message.toLowerCase() == "accepte" || message.toLowerCase() == "accepter"){
             message_tchat(`@${first_player} , @${second_player} Tenais vous prêt la partie va commencer dans 10 secondes !`);
             timer_rep_accepte(4);
-        }
-        else if(message.toLowerCase() == "refuse" || message.toLowerCase() == "refuser"){
-            restart_game_msg(`@${second_player} n'a pas accepter de jouer . @${first_player} tu peux toujours défier quelqu'un d'autre :) `);
-            restart_redemption(RedemeptionID, true);
+        }else if(message.toLowerCase() == "refuse" || message.toLowerCase() == "refuser"){
+            ImuniterUser(second_player);
             return;
         };
     };
