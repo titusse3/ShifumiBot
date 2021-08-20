@@ -44,7 +44,7 @@ var BodyReward = {
     title: "Defier quelqu'un au ShiFuMi",
     cost: RewardCost,
     prompt:"Regles du Shifumi : Identifie une personnes sur le tchat pour jouer contre lui (sous la forme @<UserName>), Ensuite ecris pierre, feuille ou ciseaux apres le compteure pour jouer ! Bon jeux !",
-    background_color:"#23fe86",
+    background_color:"#000000",
     is_user_input_required:true,
     is_global_cooldown_enabled:true,
     global_cooldown_seconds:200000,
@@ -150,7 +150,6 @@ async function Imuniter(UserCommande){
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
         const user = await collection.find({UserId : UserIdImune}).toArray();
-        message_tchat("teste")
         if(user.length === 0){
             message_tchat(`@${UserCommande} tu n'a encore jamais joué tu n'a donc pas d'imuniter`);
         }
