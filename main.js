@@ -150,6 +150,7 @@ async function Imuniter(UserCommande){
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
         const user = await collection.find({UserId : UserIdImune}).toArray();
+        message_tchat("teste")
         if(user.length === 0){
             message_tchat(`@${UserCommande} tu n'a encore jamais joué tu n'a donc pas d'imuniter`);
         }
@@ -164,23 +165,23 @@ async function Imuniter(UserCommande){
     }
 };
 
-
-
-async function Penaliter(user){
+async function Penaliter(UserPasRep, OtherUSer){
     const uri =  process.env.URL;
     const client = new MongoClient(uri);
-    let UserIdPenal = await IdUser(user);
-    // UserIdPenal = UserIdPenal.data[0].id;
+    let UserIdPenal = await IdUser(UserPasRep), OtherUSerId = await IdUser(OtherUSer);
     
     try {
         await client.connect();
         const collection = await client.db("ShifumiBotV2").collection('Palmares');
-        let userObj = await collection.find({UserId:UserIdPenal.data[0].id}).toArray();
+        let userObj = await collection.find({UserId : UserIdPenal.data[0].id}).toArray();
+        let userObj2 = await collection.find({UserId : OtherUSerId.data[0].id}).toArray();
+        let EloArray = EloPlayer(userObj2, userObj);
+
         if ( userObj.length === 1){
-            await collection.updateOne({UserId : UserIdPenal.data[0].id}, {$set : {Imune: new Date()}});
+            await collection.updateOne({UserId : UserIdPenal.data[0].id}, {$set : {Imune: new Date(), $inc : {Elo : EloArray[1]}}});
         }
         else {
-            await collection.updateOne({UserId : UserIdPenal.data[0].id}, {$setOnInsert:{User : User,UserId : UserIdPenal.data[0].id, Victoire:0, Game : 0, Imune : new Date()}}, {upsert : true});
+            await collection.updateOne({UserId : UserIdPenal.data[0].id}, {$setOnInsert:{User : UserPasRep,UserId : UserIdPenal.data[0].id, Victoire:0, Game : 0, Imune : new Date(), Elo : EloDebut + EloArray[1]}}, {upsert : true});
         }
     } catch (e) {
         console.error(e);
@@ -217,7 +218,6 @@ function VerifRep(msg){
         return -1;
     }
 };
-
 
 function SeakWinner(tab){
     let j1;
@@ -259,15 +259,14 @@ async function palmares(userPalmares) {//fonction qui repond a la commande palma
             message_tchat(message_palmares(tabTop3));
         }
         else{
-            allUser = await collect.find().toArray();
+            allUser = await collect.find().sort({Elo:-1}).toArray();
             User = allUser.find(element => element.UserId === IdUserPalmares.data[0].id);
             classement = allUser.indexOf(User) + 1;
             if (User !== undefined){
                 message_tchat(message_palmares(tabTop3, User, classement));
-            }
-            else{
+            }else{
                 message_tchat(message_palmares(tabTop3));
-            }
+            };
         }
     } catch (e) {
         console.error(e);
@@ -277,13 +276,11 @@ async function palmares(userPalmares) {//fonction qui repond a la commande palma
     }
 };
 
-
-
 function message_palmares(tab_user, user, classement) {// fonction qui revoir le message pour le palmares
     let msg_classement = ``;
     tab_user.forEach((x) => { msg_classement += ` ${tab_user.indexOf(x) + 1}° ${x.User} (${x.Victoire} w/${x.Game}) |`});
     if (user != undefined)
-        msg_classement += ` ... ${classement + 1}° ${user.User} (${user.Victoire} w/${user.Game}) | `;
+        msg_classement += ` ... ${classement}° ${user.User} (${user.Victoire} w/${user.Game}) | `;
 
     return msg_classement !== "" ? msg_classement : "Personne n'a encore jouer soit le premier :)";
 };
@@ -371,8 +368,13 @@ async function ImuniterUser(user){
         const collect = await client.db("ShifumiBotV2").collection('Palmares');
         const User = await collect.find({UserId:UserIdImmuniter}).toArray();
         if(User.length === 1 && new Date() - User[0].Imune <= TempsImuniter){
-            restart_game_msg(`${second_player} a une imuniter tu ne peux donc pas le défier`);
-        }
+            restart_game_msg(`${second_player} n'a pas répondu , de plus il a une imuniter n'auras donc pas de penaliter !`);
+            restart_redemption(RedemeptionID, true);
+        }else{
+            await Penaliter(second_player, first_player);
+            restart_game_msg(`@${second_player} n'a pas répondu il a donc perdu de l'elo !`);
+            restart_redemption(RedemeptionID, true);
+        };
     } catch (e) {
         console.error(e);
     } finally {
@@ -381,11 +383,9 @@ async function ImuniterUser(user){
     }
 };
 
-function J2PasRep(){
-    client.say(target,`/timeout @${second_player} ${timout_duree} T'a pas rep `);
-    Penaliter(second_player)
-    restart_game_msg(`@${second_player} n'a pas répondu il aura donc une pénaliter !`);
-    restart_redemption(RedemeptionID, true);
+async function J2PasRep(){
+    await ImuniterUser(second_player)
+    return;
 };
 
 async function GetEloPlayer(Player){
@@ -444,7 +444,7 @@ function restart_redemption(RedemprionId, Win){
 async function Delete(){
     let res = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${BroadcasterId}&id=${idReward}`,{'method': 'DELETE', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID}});
     // console.log(res.status);
-    if (res !== 204){
+    if (res !== '204'){
         console.log(res.status);
     };
     GetCustomReward();
@@ -498,31 +498,28 @@ GetCustomReward();
 function commandeHandler(targe , context, msg, self){// fonction appeler a chaque message du tchat 
     if (self) { return; }; // Pour que le bot ne considère pas ces propres messages
     target = targe;
-    let message = msg.trim();// supp white space 
-    if (message[0] == "!"  && game == false ){//regarde utilisation commande
-        if (message.split(' ')[0].substr(1) === "opgg"){//regarde la commande de lancement de party 
-            message_tchat(`https://euw.op.gg/summoner/userName=mdvfjz`);
-            return;
-        };
-    
-        if (message.split(' ')[0].substr(1) === "discord"){//regarde la commande de lancement de party 
-            message_tchat(`https://discord.gg/fMQ6QR8sEJ`);
-            return;
-        };
+    let message = msg.trim().toLowerCase();// supp white space 
 
-        if (message.split(' ')[0].substr(1) == "shifumi"){
-            message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares | !immunite `);
-            return;
-        };
-
-        if (message.split(' ')[0].substr(1) == "palmares"){
-            palmares(context['display-name'].toLowerCase());
-            return;
-        };
-
-        if (message.split(' ')[0].substr(1).toLowerCase() === "elo"){
-            GetEloPlayer(context['display-name'].toLowerCase());
-            return;
+    if (game == false ){//regarde utilisation commande
+        switch(message.split(" ")[0]){
+            case "!opgg" :
+                message_tchat(`https://euw.op.gg/summoner/userName=mdvfjz`);
+                return;
+            case "!discord" :
+                message_tchat(`https://discord.gg/fMQ6QR8sEJ`);
+                return;
+            case "!shifumi" :
+                message_tchat(` @${context['display-name']} Voici les commandes disponible : !duel //pseudo adversaire// | ! palmares | !immunite `);
+                return;
+            case "!palmares" :
+                palmares(context['display-name'].toLowerCase());
+                return;
+            case "!elo" :
+                GetEloPlayer(context['display-name'].toLowerCase());
+                return;
+            case "!immuniter" :
+                Imuniter(context['display-name'].toLowerCase());
+                return;
         };
         // if (message === "!duel"){
         //     message_tchat(` @${context['display-name']} Tu dois identifier une personne pour lancer la partie ! `);
