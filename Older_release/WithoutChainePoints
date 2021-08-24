@@ -1,0 +1,40 @@
+        // if (message === "!duel"){
+        //     message_tchat(` @${context['display-name']} Tu dois identifier une personne pour lancer la partie ! `);
+        //     return;
+        // };
+        // if (message.split(' ')[0].substr(1) === "duel" && game == false ){//regarde la commande de lancement de party 
+        //     first_player = context['display-name'].toLowerCase(); 
+
+        //     if (message.split(' ')[1][0] == "@"){
+        //         second_player = message.split(' ')[1].substr(1).toLowerCase();
+        //     }
+        //     else{
+        //         second_player = message.split(' ')[1].toLowerCase();
+        //     }
+
+        //     if (second_player === process.env.BOT_NAME.toLowerCase()){
+        //         restart_game_msg(`@${first_player} tu ne peux pas défier le bot !`);
+        //         return;
+        //     };
+        //     if (first_player === second_player){
+        //         restart_game_msg(` @${first_player} tu ne peux pas faire une partie avec toi même`);
+        //         return;
+        //     }
+
+        //     getChatters(chanelle, (response) => {
+        //         let tab = [...response.chatters.broadcaster, ...response.chatters.viewers, ...response.chatters.vips, ...response.chatters.moderators, ...response.chatters.staff, ...response.chatters.admins];
+
+        //         if (tab.indexOf(second_player) === -1){
+        //             //don't start match 2 choix : pas la || il s'identfie dans le message 
+        //             restart_game_msg(` @${second_player} n'est pas la !`);
+        //             return;
+        //         }
+        //         else{
+        //             // ImuniterUser(second_player);
+        //             message_tchat(` ${second_player} veut tu accepter la demande de match de @${first_player} ? si oui ecrit accepte sinon refus `);
+        //             game = "waiting response";
+        //             temps_de_reponse = setTimeout(J2PasRep, nb_seconde_rep);//on stocke la fct qui s'active si le j2 ne repond pas dans le temps inpartie
+        //             return;
+        //         };
+        //     });
+        // };

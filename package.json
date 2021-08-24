@@ -2,9 +2,9 @@
   "name": "shifumi-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "MainProgramme.js",
   "scripts": {
-    "start": "nodemon main.js"
+    "start": "nodemon MainProgramme.js"
   },
   "author": "",
   "license": "ISC",
