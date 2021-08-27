@@ -26,14 +26,14 @@ function QuestionCommand(){
 };
 
 function ChangeData(variable){
-    let DataSetup = fs.readFileSync('./Data/TimeFile.json');
+    let DataSetup = fs.readFileSync('./TimeFile.json');
     DataSetup = JSON.parse(DataSetup);
 
     rl.question(`How mutch time for the new ${tabCommande[variable]} ? `, (NewTime) => {
         if(!isNaN(NewTime)){
             DataSetup[tabCommande[variable]] = parseInt(NewTime);
             console.log(`The time ${tabCommande[variable]} is now at : ${DataSetup[tabCommande[variable]]}`);
-            fs.writeFileSync('./Data/TimeFile.json', JSON.stringify(DataSetup));
+            fs.writeFileSync('./TimeFile.json', JSON.stringify(DataSetup));
         }
         else{
             ChangeData(variable);
