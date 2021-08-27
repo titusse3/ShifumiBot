@@ -117,7 +117,11 @@ async function IdUser(user){
     const response = await fetch(`https://api.twitch.tv/helix/users?login=${user.toLowerCase()}`, {'method': 'GET', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID}})
         .catch(err => { console.log(err); return "0000"});
     const json = await response.json();
-    return json.data[0].id;
+    if (json.data !== undefined){
+        return json.data[0].id;
+    }else {
+        IdUser(user);
+    }
 };
 async function EndGame(){
     let User1, User2;
