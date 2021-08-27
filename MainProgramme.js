@@ -285,8 +285,9 @@ async function Imuniter(User){
 
 
 
-function restart_redemption(Win){
+async function restart_redemption(Win){
     let statueRdemption = Win ? "CANCELED" : "FULFILLED";
+    await GetRedemptionId();
     fetch(
         `https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?id=${Reward.RedemptionID}&broadcaster_id=${process.env.BROADCASTERID}&reward_id=${Reward.ID}`,
         {'method': 'PATCH', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID, 'Content-Type': 'application/json'}, 'body' : JSON.stringify({status: statueRdemption})}
@@ -296,6 +297,7 @@ async function GetRedemptionId(){
     let redemeption = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?broadcaster_id=${process.env.BROADCASTERID}&reward_id=${Reward.ID}&status=UNFULFILLED`,{'method': 'GET', 'headers': {'Authorization': process.env.AUTHORIZATION_CHANELLE, 'Client-Id': process.env.CLIENT_ID}});
     redemeption = await redemeption.json();
     Reward.RedemptionID = redemeption.data[0].id;
+    return;
 };
 async function DeleteReward(){
     let res = await fetch(
@@ -356,7 +358,6 @@ function commandeHandler(ShiFuMiBot, context, msg, self){// fonction appeler a c
         };
         return;
     }else if(context["custom-reward-id"] === Reward.ID){
-        GetRedemptionId();
         first_player.Username = User;
         first_player.UserID = context['user-id'];
         second_player.Username = message[0] === '@' ? message.replace('@', '') : message;
