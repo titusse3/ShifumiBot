@@ -26,6 +26,15 @@ var TimeData;
 function ReadFileValue(){
     TimeData = fs.readFileSync('./TimeFile.json');
     TimeData = JSON.parse(TimeData);
+    BodyReward = {
+        title: "Defier quelqu'un au ShiFuMi",
+        cost: TimeData["reward cost"],
+        prompt:"Regles du Shifumi : Identifie une personnes sur le tchat pour jouer contre lui (sous la forme @<UserName>), Ensuite ecris pierre, feuille ou ciseaux apres le compteure pour jouer ! Bon jeux !",
+        background_color:"#000000",
+        is_user_input_required:true,
+        is_global_cooldown_enabled:true,
+        global_cooldown_seconds:200000,
+    };
 };
 if (TimeData === undefined){
     ReadFileValue();
@@ -35,7 +44,7 @@ fs.watchFile('./TimeFile.json', {bigint: false, persistent: true, interval: 4000
 const ciseaux = 0, pierre=1, feuille=2;
 const TabCiseaux = ["ciseaux","ciseau","ciso", "kamelciso"], TabPierre = ["pierre","kamelpierre", "cailloux", "caillou"], TabFeuille = ["feuilles","feuille","kamelfeuille", "papier", "papie"];
 var target;
-const BodyReward = {
+var BodyReward = {
     title: "Defier quelqu'un au ShiFuMi",
     cost: TimeData["reward cost"],
     prompt:"Regles du Shifumi : Identifie une personnes sur le tchat pour jouer contre lui (sous la forme @<UserName>), Ensuite ecris pierre, feuille ou ciseaux apres le compteure pour jouer ! Bon jeux !",
