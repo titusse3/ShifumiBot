@@ -135,7 +135,8 @@ async function IdUser(user){
 async function EndGame(){
     let User1, User2;
     let elo_p2;
-    ChatLog(`${first_player.Username} la partie ne va pas commencer car ${second_player.Username} n'a pas accepter ton duel .`)
+    clearTimeout(J2_Rep);
+    ChatLog(`${first_player.Username} la partie ne va pas commencer car ${second_player.Username} n'a pas accepter ton duel .`);
     await Find_Data_DB([]);
     second_player.UserID = second_player.UserID === 0 && await IdUser(second_player.Username);
     User1 = TabMongo.find(element=>element.UserId === first_player.UserID.toString());
