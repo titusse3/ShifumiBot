@@ -55,6 +55,7 @@ var BodyReward = {
 };
 var TabMongo;
 var Reward = {ID:0, RedemptionID:0};
+var is_reset = false;
 
 function ChatLog(msg){
     client.say(target, msg);
@@ -89,6 +90,7 @@ async function Restart(){
     clearTimeout(J1_Rep);
     clearTimeout(J2_Rep);
     Reward = {ID:0, RedemptionID:0};
+    is_reset = false;
 };
 
 function Probability(rating1, rating2){
@@ -139,6 +141,11 @@ async function EndGame(){
     ChatLog(`${first_player.Username} la partie ne va pas commencer car ${second_player.Username} n'a pas accepter ton duel .`);
     await Find_Data_DB([]);
     second_player.UserID = second_player.UserID === 0 && await IdUser(second_player.Username);
+
+    if(first_player.UserID === false || second_player.UserID === false ){
+        console.log("BUG");
+    };
+    
     User1 = TabMongo.find(element=>element.UserId === first_player.UserID.toString());
     User2 = TabMongo.find(element=>element.UserId === second_player.UserID.toString());
     if (User2 !== undefined && new Date() - User2.Imune <= TimeData["imunity length"]){
@@ -296,6 +303,7 @@ async function Imuniter(User){
 
 
 async function restart_redemption(Win){
+    is_reset = true;
     let statueRdemption = Win ? "CANCELED" : "FULFILLED";
     await GetRedemptionId();
     fetch(
@@ -417,7 +425,7 @@ function commandeHandler(ShiFuMiBot, context, msg, self){// fonction appeler a c
                 return;
             };
         };
-        if (first_player.Rep && second_player.Rep){
+        if (first_player.Rep && second_player.Rep && !is_reset){
             Rule_Winner(first_player.Reponse, second_player.Reponse);
         };
     };
